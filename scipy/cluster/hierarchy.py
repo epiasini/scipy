@@ -575,14 +575,15 @@ def linkage(y, method='single', metric='euclidean'):
                                {T}d(v,s)^2
                         + \\frac{|v|+|t|}
                                {T}d(v,t)^2
-                        + \\frac{|v|}
+                        - \\frac{|v|}
                                {T}d(s,t)^2}
 
         where :math:`u` is the newly joined cluster consisting of
         clusters :math:`s` and :math:`t`, :math:`v` is an unused
         cluster in the forest, :math:`T=|v|+|s|+|t|`, and
-        :math:`|*|` is the cardinality of its argument. This is also
-        known as the incremental algorithm.
+        :math:`|*|` is the cardinality of its argument. The distance
+        is assumed to be Euclidean. This is also known as the
+        incremental algorithm.
 
     Warning: When the minimum distance pair in the forest is chosen, there
     may be two or more pairs with the same minimum distance. This
