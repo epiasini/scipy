@@ -64,6 +64,9 @@ extern PyObject *linkage_wrap(PyObject *self, PyObject *args) {
     case CPY_LINKAGE_WEIGHTED:
       df = dist_weighted;
       break;
+    case CPY_LINKAGE_WARD:
+      df = dist_ward;
+      break;
     default:
       /** Report an error. */
       df = 0;
@@ -96,10 +99,6 @@ extern PyObject *linkage_euclid_wrap(PyObject *self, PyObject *args) {
       break;
     case CPY_LINKAGE_MEDIAN:
       df = dist_centroid;
-      break;
-    case CPY_LINKAGE_WARD:
-      df = dist_ward;
-      //      ml = 1;
       break;
     default:
       /** Report an error. */

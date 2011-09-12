@@ -179,8 +179,8 @@ import _hierarchy_wrap
 import scipy.spatial.distance as distance
 
 _cpy_non_euclid_methods = {'single': 0, 'complete': 1, 'average': 2,
-                           'weighted': 6}
-_cpy_euclid_methods = {'centroid': 3, 'median': 4, 'ward': 5}
+                           'ward': 5, 'weighted': 6}
+_cpy_euclid_methods = {'centroid': 3, 'median': 4}
 _cpy_linkage_methods = set(_cpy_non_euclid_methods.keys()).union(
     set(_cpy_euclid_methods.keys()))
 
@@ -423,8 +423,8 @@ def median(y):
 def ward(y):
     """
     Performs Ward's linkage on a condensed or redundant distance
-    matrix. See linkage for more information on the return structure
-    and algorithm.
+    matrix. Assumes Euclidean metric. See linkage for more information
+    on the return structure and algorithm.
 
     The following are common calling conventions:
 
