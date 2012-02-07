@@ -65,7 +65,7 @@ class Rbf(object):
         and d is the array of values at the nodes
     function : str or callable, optional
         The radial basis function, based on the radius, r, given by the norm
-        (defult is Euclidean distance); the default is 'multiquadric'::
+        (default is Euclidean distance); the default is 'multiquadric'::
 
             'multiquadric': sqrt((r/self.epsilon)**2 + 1)
             'inverse': 1.0/sqrt((r/self.epsilon)**2 + 1)
@@ -162,7 +162,7 @@ class Rbf(object):
                 self._function = self.function
             elif argcount == 2:
                 if sys.version_info[0] >= 3:
-                    self._function = function.__get__(self, Rbf)
+                    self._function = self.function.__get__(self, Rbf)
                 else:
                     import new
                     self._function = new.instancemethod(self.function, self,

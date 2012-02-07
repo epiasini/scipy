@@ -117,15 +117,13 @@ from scipy.linalg import norm, solve, inv, qr, svd, lstsq, LinAlgError
 from numpy import asarray, dot, vdot
 import scipy.sparse.linalg
 import scipy.sparse
-import scipy.lib.blas as blas
+from scipy.linalg import get_blas_funcs
 import inspect
 from linesearch import scalar_search_wolfe1, scalar_search_armijo
 
 __all__ = [
     'broyden1', 'broyden2', 'anderson', 'linearmixing',
-    'diagbroyden', 'excitingmixing', 'newton_krylov',
-    # Deprecated functions:
-    'broyden_generalized', 'anderson2', 'broyden3']
+    'diagbroyden', 'excitingmixing', 'newton_krylov']
 
 #------------------------------------------------------------------------------
 # Utility functions
@@ -659,8 +657,8 @@ class LowRankMatrix(object):
 
     @staticmethod
     def _matvec(v, alpha, cs, ds):
-        axpy, scal, dotc = blas.get_blas_funcs(['axpy', 'scal', 'dotc'],
-                                               cs[:1] + [v])
+        axpy, scal, dotc = get_blas_funcs(['axpy', 'scal', 'dotc'],
+                                          cs[:1] + [v])
         w = alpha * v
         for c, d in zip(cs, ds):
             a = dotc(d, v)
@@ -675,7 +673,7 @@ class LowRankMatrix(object):
 
         # (B + C D^H)^-1 = B^-1 - B^-1 C (I + D^H B^-1 C)^-1 D^H B^-1
 
-        axpy, dotc = blas.get_blas_funcs(['axpy', 'dotc'], cs[:1] + [v])
+        axpy, dotc = get_blas_funcs(['axpy', 'dotc'], cs[:1] + [v])
 
         c0 = cs[0]
         A = alpha * np.identity(len(cs), dtype=c0.dtype)
@@ -1477,36 +1475,3 @@ diagbroyden = _nonlin_wrapper('diagbroyden', DiagBroyden)
 excitingmixing = _nonlin_wrapper('excitingmixing', ExcitingMixing)
 newton_krylov = _nonlin_wrapper('newton_krylov', KrylovJacobian)
 
-
-# Deprecated functions
-
-@np.deprecate
-def broyden_generalized(*a, **kw):
-    """Use *anderson(..., w0=0)* instead"""
-    kw.setdefault('w0', 0)
-    return anderson(*a, **kw)
-
-@np.deprecate
-def broyden1_modified(*a, **kw):
-    """Use `broyden1` instead"""
-    return broyden1(*a, **kw)
-
-@np.deprecate
-def broyden_modified(*a, **kw):
-    """Use `anderson` instead"""
-    return anderson(*a, **kw)
-
-@np.deprecate
-def anderson2(*a, **kw):
-    """Use `anderson` instead"""
-    return anderson(*a, **kw)
-
-@np.deprecate
-def broyden3(*a, **kw):
-    """Use `broyden2` instead"""
-    return broyden2(*a, **kw)
-
-@np.deprecate
-def vackar(*a, **kw):
-    """Use `diagbroyden` instead"""
-    return diagbroyden(*a, **kw)

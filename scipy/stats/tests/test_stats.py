@@ -432,15 +432,33 @@ class TestFisherExact(TestCase):
             assert_equal(oddsratio, np.nan)
 
     def test_less_greater(self):
-        tables = ([[2, 7], [8, 2]],
-                  [[200, 7], [8, 300]],
-                  [[28, 21], [6, 1957]],
-                  [[190, 800], [200, 900]])
-        # from R
-        pvals = ([0.018521725952066501, 0.9990149169715733],
-                 [1.0, 2.0056578803889148e-122],
-                 [1.0, 5.7284374608319831e-44],
-                 [0.7416227, 0.2959826])
+        tables = (
+            # Some tables to compare with R:
+            [[2, 7], [8, 2]],
+            [[200, 7], [8, 300]],
+            [[28, 21], [6, 1957]],
+            [[190, 800], [200, 900]],
+            # Some tables with simple exact values
+            # (includes regression test for ticket #1568):
+            [[0, 2], [3, 0]],
+            [[1, 1], [2, 1]],
+            [[2, 0], [1, 2]],
+            [[0, 1], [2, 3]],
+            [[1, 0], [1, 4]],
+            )
+        pvals = (
+            # from R:
+            [0.018521725952066501, 0.9990149169715733],
+            [1.0, 2.0056578803889148e-122],
+            [1.0, 5.7284374608319831e-44],
+            [0.7416227, 0.2959826],
+            # Exact:
+            [0.1, 1.0],
+            [0.7, 0.9],
+            [1.0, 0.3],
+            [2./3, 1.0],
+            [1.0, 1./3],
+            )
         for table, pval in zip(tables, pvals):
             res = []
             res.append(stats.fisher_exact(table, alternative="less")[1])
@@ -1010,9 +1028,7 @@ class TestMode(TestCase):
 
 
 class TestVariability(TestCase):
-    """  Comparison numbers are found using R v.1.5.1
-         note that length(testcase) = 4
-    """
+
     testcase = [1,2,3,4]
 
     def test_signaltonoise(self):
@@ -1043,6 +1059,45 @@ class TestVariability(TestCase):
         desired = ([-1.3416407864999, -0.44721359549996 , 0.44721359549996 , 1.3416407864999])
         assert_array_almost_equal(desired,y,decimal=12)
 
+    def test_zmap_axis(self):
+        """Test use of 'axis' keyword in zmap."""        
+        x = np.array([[0.0, 0.0, 1.0, 1.0],
+                      [1.0, 1.0, 1.0, 2.0],
+                      [2.0, 0.0, 2.0, 0.0]])
+
+        t1 = 1.0/np.sqrt(2.0/3)
+        t2 = np.sqrt(3.)/3
+        t3 = np.sqrt(2.)
+
+        z0 = stats.zmap(x, x, axis=0)
+        z1 = stats.zmap(x, x, axis=1)
+
+        z0_expected = [[-t1, -t3/2, -t3/2, 0.0],
+                       [0.0,  t3,   -t3/2,  t1],
+                       [t1,  -t3/2,  t3,   -t1]]
+        z1_expected = [[-1.0, -1.0, 1.0, 1.0],
+                       [-t2, -t2, -t2, np.sqrt(3.)],
+                       [1.0, -1.0, 1.0, -1.0]]
+
+        assert_array_almost_equal(z0, z0_expected)
+        assert_array_almost_equal(z1, z1_expected)        
+
+    def test_zmap_ddof(self):
+        """Test use of 'ddof' keyword in zmap."""
+        x = np.array([[0.0, 0.0, 1.0, 1.0],
+                      [0.0, 1.0, 2.0, 3.0]])
+
+        t1 = 1.0/np.sqrt(2.0/3)
+        t2 = np.sqrt(3.)/3
+        t3 = np.sqrt(2.)
+
+        z = stats.zmap(x, x, axis=1, ddof=1)
+
+        z0_expected = np.array([-0.5, -0.5, 0.5, 0.5])/(1.0/np.sqrt(3))
+        z1_expected = np.array([-1.5, -0.5, 0.5, 1.5])/(np.sqrt(5./3))
+        assert_array_almost_equal(z[0], z0_expected)
+        assert_array_almost_equal(z[1], z1_expected)
+
     def test_zscore(self):
         """
         not in R, so tested by using
@@ -1051,6 +1106,46 @@ class TestVariability(TestCase):
         y = stats.zscore(self.testcase)
         desired = ([-1.3416407864999, -0.44721359549996 , 0.44721359549996 , 1.3416407864999])
         assert_array_almost_equal(desired,y,decimal=12)
+
+    def test_zscore_axis(self):
+        """Test use of 'axis' keyword in zscore."""
+        x = np.array([[0.0, 0.0, 1.0, 1.0],
+                      [1.0, 1.0, 1.0, 2.0],
+                      [2.0, 0.0, 2.0, 0.0]])
+
+        t1 = 1.0/np.sqrt(2.0/3)
+        t2 = np.sqrt(3.)/3
+        t3 = np.sqrt(2.)
+
+        z0 = stats.zscore(x, axis=0)
+        z1 = stats.zscore(x, axis=1)
+
+        z0_expected = [[-t1, -t3/2, -t3/2, 0.0],
+                       [0.0,  t3,   -t3/2,  t1],
+                       [t1,  -t3/2,  t3,   -t1]]
+        z1_expected = [[-1.0, -1.0, 1.0, 1.0],
+                       [-t2, -t2, -t2, np.sqrt(3.)],
+                       [1.0, -1.0, 1.0, -1.0]]
+
+        assert_array_almost_equal(z0, z0_expected)
+        assert_array_almost_equal(z1, z1_expected)
+
+    def test_zscore_ddof(self):
+        """Test use of 'ddof' keyword in zscore."""
+        x = np.array([[0.0, 0.0, 1.0, 1.0],
+                      [0.0, 1.0, 2.0, 3.0]])
+
+        t1 = 1.0/np.sqrt(2.0/3)
+        t2 = np.sqrt(3.)/3
+        t3 = np.sqrt(2.)
+
+        z = stats.zscore(x, axis=1, ddof=1)
+
+        z0_expected = np.array([-0.5, -0.5, 0.5, 0.5])/(1.0/np.sqrt(3))
+        z1_expected = np.array([-1.5, -0.5, 0.5, 1.5])/(np.sqrt(5./3))
+        assert_array_almost_equal(z[0], z0_expected)
+        assert_array_almost_equal(z[1], z1_expected)
+
 
 class TestMoments(TestCase):
     """
@@ -1531,6 +1626,14 @@ def test_skewtest_too_few_samples():
     x = np.arange(7.0)
     assert_raises(ValueError, stats.skewtest, x)
 
+def test_kurtosistest_too_few_samples():
+    """Regression test for ticket #1425.
+
+    kurtosistest requires at least 5 samples; 4 should raise a ValueError.
+    """
+    x = np.arange(4.0)
+    assert_raises(ValueError, stats.kurtosistest, x)
+
 def mannwhitneyu():
     x = np.array([ 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
         1., 1., 1., 1., 1., 1., 1., 1., 2., 1., 1., 1., 1., 1., 1., 1.,
@@ -1864,6 +1967,66 @@ class TestFOneWay(TestCase):
         # Despite being a floating point calculation, this data should
         # result in F being exactly 2.0.
         assert_equal(F, 2.0)
+
+
+class TestKruskal(TestCase):
+
+    def test_simple(self):
+        """A really simple case for stats.kruskal"""
+        x = [1]
+        y = [2]
+        h, p = stats.kruskal(x, y)
+        assert_equal(h, 1.0)
+        assert_approx_equal(p, stats.chisqprob(h, 1))
+        h, p = stats.kruskal(np.array(x), np.array(y))
+        assert_equal(h, 1.0)
+        assert_approx_equal(p, stats.chisqprob(h, 1))
+
+    def test_basic(self):
+        """A basic test, with no ties."""
+        x = [1, 3, 5, 7, 9]
+        y = [2, 4, 6, 8, 10]
+        h, p = stats.kruskal(x, y)
+        assert_approx_equal(h, 3./11, significant=10)
+        assert_approx_equal(p, stats.chisqprob(3./11, 1))
+        h, p = stats.kruskal(np.array(x), np.array(y))
+        assert_approx_equal(h, 3./11, significant=10)
+        assert_approx_equal(p, stats.chisqprob(3./11, 1))
+
+    def test_simple_tie(self):
+        """A simple case with a tie."""
+        x = [1]
+        y = [1, 2]
+        h_uncorr = 1.5**2 + 2*2.25**2 - 12
+        corr = 0.75
+        expected = h_uncorr / corr   # 0.5
+        h, p = stats.kruskal(x, y)
+        # Since the expression is simple and the exact answer is 0.5, it
+        # should be safe to use assert_equal().
+        assert_equal(h, expected)
+
+    def test_another_tie(self):
+        """Another test of stats.kruskal with a tie."""
+        x = [1, 1, 1, 2]
+        y = [2, 2, 2, 2]
+        h_uncorr = (12. / 8. / 9.) * 4 * (3**2 + 6**2) - 3 * 9
+        corr = 1 - float(3**3 - 3 + 5**3 - 5) / (8**3 - 8)
+        expected = h_uncorr / corr
+        h, p = stats.kruskal(x, y)
+        assert_approx_equal(h, expected)
+
+    def test_three_groups(self):
+        """A test of stats.kruskal with three groups, with ties."""
+        x = [1, 1, 1]
+        y = [2, 2, 2]
+        z = [2, 2]
+        h_uncorr = (12. / 8. / 9.) * (3*2**2 + 3*6**2 + 2*6**2) - 3 * 9  # 5.0
+        corr = 1 - float(3**3 - 3 + 5**3 - 5) / (8**3 - 8)
+        expected = h_uncorr / corr  # 7.0
+        h, p = stats.kruskal(x, y, z)
+        assert_approx_equal(h, expected)
+        assert_approx_equal(p, stats.chisqprob(h, 2))
+
 
 if __name__ == "__main__":
     run_module_suite()

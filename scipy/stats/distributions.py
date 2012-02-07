@@ -28,6 +28,8 @@ import numpy as np
 import numpy.random as mtrand
 from numpy import flatnonzero as nonzero
 import vonmises_cython
+from _tukeylambda_stats import tukeylambda_variance as _tlvar, \
+                                tukeylambda_kurtosis as _tlkurt
 
 __all__ = [
            'rv_continuous',
@@ -47,10 +49,9 @@ __all__ = [
            'rdist', 'rayleigh', 'reciprocal', 'rice', 'recipinvgauss',
            'semicircular', 'triang', 'truncexpon', 'truncnorm',
            'tukeylambda', 'uniform', 'vonmises', 'wald', 'wrapcauchy',
-           'entropy', 'rv_discrete',
-           'binom', 'bernoulli', 'nbinom', 'geom', 'hypergeom', 'logser',
-           'poisson', 'planck', 'boltzmann', 'randint', 'zipf', 'dlaplace',
-           'skellam'
+           'entropy', 'rv_discrete', 'binom', 'bernoulli', 'nbinom', 'geom',
+           'hypergeom', 'logser', 'poisson', 'planck', 'boltzmann', 'randint',
+           'zipf', 'dlaplace', 'skellam'
           ]
 
 floatinfo = numpy.finfo(float)
@@ -306,8 +307,29 @@ rv = %(name)s(%(shapes)s, loc=0)
 """
 docdict_discrete['frozennote'] = _doc_default_frozen_note
 
-docdict_discrete['example'] = _doc_default_example.replace('[0.9,]',
-                                  'Replace with reasonable value')
+_doc_default_discrete_example = \
+"""Examples
+--------
+>>> from scipy.stats import %(name)s
+>>> [ %(shapes)s ] = [<Replace with reasonable values>]
+>>> rv = %(name)s(%(shapes)s)
+
+Display frozen pmf
+
+>>> x = np.arange(0, np.minimum(rv.dist.b, 3))
+>>> h = plt.vlines(x, 0, rv.pmf(x), lw=2)
+
+Check accuracy of cdf and ppf
+
+>>> prb = %(name)s.cdf(x, %(shapes)s)
+>>> h = plt.semilogy(np.abs(x - %(name)s.ppf(prb, %(shapes)s)) + 1e-20)
+
+Random number generation
+
+>>> R = %(name)s.rvs(%(shapes)s, size=100)
+
+"""
+docdict_discrete['example'] = _doc_default_discrete_example
 
 _doc_default_before_notes = ''.join([docdict_discrete['longsummary'],
                                      docdict_discrete['allmethods'],
@@ -1255,7 +1277,7 @@ class rv_continuous(rv_generic):
         cond1 = (scale > 0) & (x >= self.a) & (x <= self.b)
         cond = cond0 & cond1
         output = zeros(shape(cond),'d')
-        putmask(output,(1-cond0)*array(cond1,bool),self.badvalue)
+        putmask(output,(1-cond0)+np.isnan(x),self.badvalue)
         if any(cond):
             goodargs = argsreduce(cond, *((x,)+args+(scale,)))
             scale, goodargs = goodargs[-1], goodargs[:-1]
@@ -1298,7 +1320,7 @@ class rv_continuous(rv_generic):
         cond = cond0 & cond1
         output = empty(shape(cond),'d')
         output.fill(NINF)
-        putmask(output,(1-cond0)*array(cond1,bool),self.badvalue)
+        putmask(output,(1-cond0)+np.isnan(x),self.badvalue)
         if any(cond):
             goodargs = argsreduce(cond, *((x,)+args+(scale,)))
             scale, goodargs = goodargs[-1], goodargs[:-1]
@@ -1340,7 +1362,7 @@ class rv_continuous(rv_generic):
         cond2 = (x >= self.b) & cond0
         cond = cond0 & cond1
         output = zeros(shape(cond),'d')
-        place(output,(1-cond0)*(cond1==cond1),self.badvalue)
+        place(output,(1-cond0)+np.isnan(x),self.badvalue)
         place(output,cond2,1.0)
         if any(cond):  #call only if at least 1 entry
             goodargs = argsreduce(cond, *((x,)+args))
@@ -1382,7 +1404,7 @@ class rv_continuous(rv_generic):
         cond = cond0 & cond1
         output = empty(shape(cond),'d')
         output.fill(NINF)
-        place(output,(1-cond0)*(cond1==cond1),self.badvalue)
+        place(output,(1-cond0)*(cond1==cond1)+np.isnan(x),self.badvalue)
         place(output,cond2,0.0)
         if any(cond):  #call only if at least 1 entry
             goodargs = argsreduce(cond, *((x,)+args))
@@ -1423,7 +1445,7 @@ class rv_continuous(rv_generic):
         cond2 = cond0 & (x <= self.a)
         cond = cond0 & cond1
         output = zeros(shape(cond),'d')
-        place(output,(1-cond0)*(cond1==cond1),self.badvalue)
+        place(output,(1-cond0)+np.isnan(x),self.badvalue)
         place(output,cond2,1.0)
         if any(cond):
             goodargs = argsreduce(cond, *((x,)+args))
@@ -1468,7 +1490,7 @@ class rv_continuous(rv_generic):
         cond = cond0 & cond1
         output = empty(shape(cond),'d')
         output.fill(NINF)
-        place(output,(1-cond0)*(cond1==cond1),self.badvalue)
+        place(output,(1-cond0)+np.isnan(x),self.badvalue)
         place(output,cond2,0.0)
         if any(cond):
             goodargs = argsreduce(cond, *((x,)+args))
@@ -1766,10 +1788,10 @@ class rv_continuous(rv_generic):
     #  estimates for the .fit method
     def _reduce_func(self, args, kwds):
         args = list(args)
-        Nargs = len(args) - 2
+        Nargs = len(args)
         fixedn = []
-        index = range(Nargs) + [-2, -1]
-        names = ['f%d' % n for n in range(Nargs)] + ['floc', 'fscale']
+        index = range(Nargs)
+        names = ['f%d' % n for n in range(Nargs - 2)] + ['floc', 'fscale']
         x0 = args[:]
         for n, key in zip(index, names):
             if kwds.has_key(key):
@@ -2464,6 +2486,8 @@ class cauchy_gen(rv_continuous):
         return inf, inf, nan, nan
     def _entropy(self):
         return log(4*pi)
+    def _fitstart(data, args=None):
+       return (0, 1)
 cauchy = cauchy_gen(name='cauchy')
 
 
@@ -4675,9 +4699,10 @@ class powerlaw_gen(rv_continuous):
     def _ppf(self, q, a):
         return pow(q, 1.0/a)
     def _stats(self, a):
-        return a/(a+1.0), a*(a+2.0)/(a+1.0)**2, \
-               2*(1.0-a)*sqrt((a+2.0)/(a*(a+3.0))), \
-               6*polyval([1,-1,-6,2],a)/(a*(a+3.0)*(a+4))
+        return (a / (a + 1.0),
+                a / (a + 2.0) / (a + 1.0) ** 2,
+                -2.0 * ((a - 1.0) / (a + 3.0)) * sqrt((a + 2.0) / a),
+                6 * polyval([1, -1, -6, 2], a) / (a * (a + 3.0) * (a + 4)))
     def _entropy(self, a):
         return 1 - 1.0/a - log(a)
 powerlaw = powerlaw_gen(a=0.0, b=1.0, name="powerlaw", shapes="a")
@@ -5100,33 +5125,30 @@ class tukeylambda_gen(rv_continuous):
     def _argcheck(self, lam):
         # lam in RR.
         return np.ones(np.shape(lam), dtype=bool)
+
     def _pdf(self, x, lam):
         Fx = arr(special.tklmbda(x,lam))
         Px = Fx**(lam-1.0) + (arr(1-Fx))**(lam-1.0)
         Px = 1.0/arr(Px)
         return where((lam <= 0) | (abs(x) < 1.0/arr(lam)), Px, 0.0)
+
     def _cdf(self, x, lam):
         return special.tklmbda(x, lam)
+
     def _ppf(self, q, lam):
         q = q*1.0
         vals1 = (q**lam - (1-q)**lam)/lam
         vals2 = log(q/(1-q))
         return where((lam == 0)&(q==q), vals2, vals1)
-    def _stats(self, lam):
-        mu2 = 2*gam(lam+1.5)-lam*pow(4,-lam)*sqrt(pi)*gam(lam)*(1-2*lam)
-        mu2 /= lam*lam*(1+2*lam)*gam(1+1.5)
-        mu4 = 3*gam(lam)*gam(lam+0.5)*pow(2,-2*lam) / lam**3 / gam(2*lam+1.5)
-        mu4 += 2.0/lam**4 / (1+4*lam)
-        mu4 -= 2*sqrt(3)*gam(lam)*pow(2,-6*lam)*pow(3,3*lam) * \
-               gam(lam+1.0/3)*gam(lam+2.0/3) / (lam**3.0 * gam(2*lam+1.5) * \
-                                                gam(lam+0.5))
-        g2 = mu4 / mu2 / mu2 - 3.0
 
-        return 0, mu2, 0, g2
+    def _stats(self, lam):
+        return 0, _tlvar(lam), 0, _tlkurt(lam)
+
     def _entropy(self, lam):
         def integ(p):
             return log(pow(p,lam-1)+pow(1-p,lam-1))
         return integrate.quad(integ,0,1)[0]
+
 tukeylambda = tukeylambda_gen(name='tukeylambda', shapes="lam")
 
 
@@ -5281,36 +5303,55 @@ wrapcauchy = wrapcauchy_gen(a=0.0, b=2*pi, name='wrapcauchy', shapes="c")
 ### DISCRETE DISTRIBUTIONS
 ###
 
-def entropy(pk,qk=None):
-    """S = entropy(pk,qk=None)
+def entropy(pk, qk=None, base=None):
+    """ Calculate the entropy of a distribution for given probability values.
 
-    calculate the entropy of a distribution given the p_k values
-    S = -sum(pk * log(pk), axis=0)
+    If only probabilities `pk` are given, the entropy is calculated as
+    ``S = -sum(pk * log(pk), axis=0)``.
 
-    If qk is not None, then compute a relative entropy
-    S = sum(pk * log(pk / qk), axis=0)
+    If `qk` is not None, then compute a relative entropy
+    ``S = sum(pk * log(pk / qk), axis=0)``.
 
-    Routine will normalize pk and qk if they don't sum to 1
+    This routine will normalize `pk` and `qk` if they don't sum to 1.
+
+    Parameters
+    ----------
+    pk : sequence
+        Defines the (discrete) distribution. ``pk[i]`` is the (possibly
+        unnormalized) probability of event ``i``.
+    qk : sequence, optional
+        Sequence against which the relative entropy is computed. Should be in
+        the same format as `pk`.
+    base : float, optional
+        The logarithmic base to use, defaults to ``e`` (natural logarithm).
+
+    Returns
+    -------
+    S : float
+        The calculated entropy.
+
     """
     pk = arr(pk)
-    pk = 1.0* pk / sum(pk,axis=0)
+    pk = 1.0* pk / sum(pk, axis=0)
     if qk is None:
         vec = where(pk == 0, 0.0, pk*log(pk))
     else:
         qk = arr(qk)
         if len(qk) != len(pk):
             raise ValueError("qk and pk must have same length.")
-        qk = 1.0*qk / sum(qk,axis=0)
+        qk = 1.0*qk / sum(qk, axis=0)
         # If qk is zero anywhere, then unless pk is zero at those places
         #   too, the relative entropy is infinite.
-        if any(take(pk,nonzero(qk==0.0),axis=0)!=0.0, 0):
+        if any(take(pk, nonzero(qk == 0.0), axis=0) != 0.0, 0):
             return inf
         vec = where (pk == 0, 0.0, -pk*log(pk / qk))
-    return -sum(vec,axis=0)
+    S = -sum(vec, axis=0)
+    if base is not None:
+        S /= log(base)
+    return S
 
 
 ## Handlers for generic case where xk and pk are given
-
 
 
 def _drv_pmf(self, xk, *args):
@@ -5818,7 +5859,7 @@ class rv_discrete(rv_generic):
         cond1 = (k >= self.a) & (k <= self.b) & self._nonzero(k,*args)
         cond = cond0 & cond1
         output = zeros(shape(cond),'d')
-        place(output,(1-cond0)*(cond1==cond1),self.badvalue)
+        place(output,(1-cond0) + np.isnan(k),self.badvalue)
         if any(cond):
             goodargs = argsreduce(cond, *((k,)+args))
             place(output,cond,self._pmf(*goodargs))
@@ -5856,7 +5897,7 @@ class rv_discrete(rv_generic):
         cond = cond0 & cond1
         output = empty(shape(cond),'d')
         output.fill(NINF)
-        place(output,(1-cond0)*(cond1==cond1),self.badvalue)
+        place(output,(1-cond0) + np.isnan(k),self.badvalue)
         if any(cond):
             goodargs = argsreduce(cond, *((k,)+args))
             place(output,cond,self._logpmf(*goodargs))
@@ -5894,7 +5935,7 @@ class rv_discrete(rv_generic):
         cond2 = (k >= self.b)
         cond = cond0 & cond1
         output = zeros(shape(cond),'d')
-        place(output,(1-cond0)*(cond1==cond1),self.badvalue)
+        place(output,(1-cond0) + np.isnan(k),self.badvalue)
         place(output,cond2*(cond0==cond0), 1.0)
 
         if any(cond):
@@ -5935,7 +5976,7 @@ class rv_discrete(rv_generic):
         cond = cond0 & cond1
         output = empty(shape(cond),'d')
         output.fill(NINF)
-        place(output,(1-cond0)*(cond1==cond1),self.badvalue)
+        place(output,(1-cond0) + np.isnan(k),self.badvalue)
         place(output,cond2*(cond0==cond0), 0.0)
 
         if any(cond):
@@ -5975,7 +6016,7 @@ class rv_discrete(rv_generic):
         cond2 = (k < self.a) & cond0
         cond = cond0 & cond1
         output = zeros(shape(cond),'d')
-        place(output,(1-cond0)*(cond1==cond1),self.badvalue)
+        place(output,(1-cond0) + np.isnan(k),self.badvalue)
         place(output,cond2,1.0)
         if any(cond):
             goodargs = argsreduce(cond, *((k,)+args))
@@ -6015,7 +6056,7 @@ class rv_discrete(rv_generic):
         cond = cond0 & cond1
         output = empty(shape(cond),'d')
         output.fill(NINF)
-        place(output,(1-cond0)*(cond1==cond1),self.badvalue)
+        place(output,(1-cond0) + np.isnan(k),self.badvalue)
         place(output,cond2,0.0)
         if any(cond):
             goodargs = argsreduce(cond, *((k,)+args))
@@ -6620,10 +6661,39 @@ class hypergeom_gen(rv_discrete):
         pmf(k, M, n, N) = choose(n, k) * choose(M - n, N - k) / choose(M, N),
                                                for N - (M-n) <= k <= min(m,N)
 
-    %(example)s
+    Examples
+    --------
+    >>> from scipy.stats import hypergeom
+
+    Suppose we have a collection of 20 animals, of which 7 are dogs.  Then if
+    we want to know the probability of finding a given number of dogs if we
+    choose at random 12 of the 20 animals, we can initialize a frozen
+    distribution and plot the probability mass function:
+
+    >>> [M, n, N] = [20, 7, 12]
+    >>> rv = hypergeom(M, n, N)
+    >>> x = np.arange(0, n+1)
+    >>> pmf_dogs = rv.pmf(x)
+
+    >>> fig = plt.figure()
+    >>> ax = fig.add_subplot(111)
+    >>> ax.plot(x, pmf_dogs, 'bo')
+    >>> ax.vlines(x, 0, pmf_dogs, lw=2)
+    >>> ax.set_xlabel('# of dogs in our group of chosen animals')
+    >>> ax.set_ylabel('hypergeom PMF')
+    >>> plt.show()
+
+    Instead of using a frozen distribution we can also use `hypergeom`
+    methods directly.  To for example obtain the cumulative distribution
+    function, use:
+
+    >>> prb = hypergeom.cdf(x, M, n, N)
+
+    And to generate random numbers:
+
+    >>> R = hypergeom.rvs(M, n, N, size=10)
 
     """
-
     def _rvs(self, M, n, N):
         return mtrand.hypergeometric(n,M-n,N,size=self._size)
     def _argcheck(self, M, n, N):

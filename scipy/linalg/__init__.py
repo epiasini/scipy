@@ -67,6 +67,7 @@ Decompositions
    cho_solve - Solve previously factored linear system
    cho_solve_banded - Solve previously factored banded linear system
    qr - QR decomposition of a matrix
+   qr_multiply - QR decomposition and multiplication by Q
    schur - Schur decomposition of a matrix
    rsf2csf - Real to complex Schur form
    hessenberg - Hessenberg form of a matrix
@@ -105,6 +106,7 @@ Special Matrices
    hilbert - Hilbert matrix
    invhilbert - Inverse Hilbert matrix
    leslie - Leslie matrix
+   pascal - Pascal matrix
    toeplitz - Toeplitz matrix
    tri - Construct a matrix filled with ones at and below a given diagonal
 

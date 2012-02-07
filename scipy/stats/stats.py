@@ -1193,6 +1193,10 @@ def kurtosistest(a, axis=0):
     """
     a, axis = _chk_asarray(a, axis)
     n = float(a.shape[axis])
+    if n < 5:
+        raise ValueError(
+            "kurtosistest requires at least 5 observations; %i observations"
+            " were given." % int(n))
     if n < 20:
         warnings.warn(
             "kurtosistest only valid for n>=20 ... continuing anyway, n=%i" %
@@ -1826,19 +1830,18 @@ def zscore(a, axis=0, ddof=0):
                       [ 0.5918,  0.6948,  0.904 ,  0.3721],
                       [ 0.0921,  0.2481,  0.1188,  0.1366]])
     >>> stats.zscore(b, axis=1, ddof=1)
-    array([[-1.1649, -1.4319, -0.8554, -1.0189],
-           [-0.8661, -1.5035, -0.9737, -0.6154],
-           [-0.888 , -1.3817, -0.5461, -1.1156],
-           [-2.3043, -2.2014, -1.9921, -2.5241],
-           [-2.0773, -1.9212, -2.0506, -2.0328]])
-
+    array([[-0.19264823, -1.28415119,  1.07259584,  0.40420358],
+           [ 0.33048416, -1.37380874,  0.04251374,  1.00081084],
+           [ 0.26796377, -1.12598418,  1.23283094, -0.37481053],
+           [-0.22095197,  0.24468594,  1.19042819, -1.21416216],
+           [-0.82780366,  1.4457416 , -0.43867764, -0.1792603 ]])
     """
     a = np.asanyarray(a)
     mns = a.mean(axis=axis)
     sstd = a.std(axis=axis, ddof=ddof)
     if axis and mns.ndim < a.ndim:
-        return ((a - np.expand_dims(mns, axis=axis) /
-                 np.expand_dims(sstd,axis=axis)))
+        return ((a - np.expand_dims(mns, axis=axis)) /
+                 np.expand_dims(sstd,axis=axis))
     else:
         return (a - mns) / sstd
 
@@ -1877,17 +1880,21 @@ def zmap(scores, compare, axis=0, ddof=0):
     matrices and masked arrays (it uses `asanyarray` instead of `asarray`
     for parameters).
 
+    Examples
+    --------
+    >>> a = [0.5, 2.0, 2.5, 3]
+    >>> b = [0, 1, 2, 3, 4]
+    >>> zmap(a, b)
+    array([-1.06066017,  0.        ,  0.35355339,  0.70710678])
     """
     scores, compare = map(np.asanyarray, [scores, compare])
     mns = compare.mean(axis=axis)
     sstd = compare.std(axis=axis, ddof=ddof)
     if axis and mns.ndim < compare.ndim:
-        return ((scores - np.expand_dims(mns, axis=axis) /
-                 np.expand_dims(sstd,axis=axis)))
+        return ((scores - np.expand_dims(mns, axis=axis)) /
+                 np.expand_dims(sstd,axis=axis))
     else:
         return (scores - mns) / sstd
-
-
 
 
 #####################################
@@ -2148,24 +2155,23 @@ def f_oneway(*args):
     .. [2] Heiman, G.W.  Research Methods in Statistics. 2002.
 
     """
-    na = len(args)            # ANOVA on 'na' groups, each in it's own array
-    tmp = map(np.array,args)
+    args = map(np.asarray, args) # convert to an numpy array
+    na = len(args)              # ANOVA on 'na' groups, each in it's own array
     alldata = np.concatenate(args)
     bign = len(alldata)
-    sstot = ss(alldata)-(square_of_sums(alldata)/float(bign))
+    sstot = ss(alldata) - (square_of_sums(alldata) / float(bign))
     ssbn = 0
     for a in args:
-        ssbn = ssbn + square_of_sums(array(a))/float(len(a))
-    ssbn = ssbn - (square_of_sums(alldata)/float(bign))
-    sswn = sstot-ssbn
-    dfbn = na-1
+        ssbn += square_of_sums(a) / float(len(a))
+    ssbn -= (square_of_sums(alldata) / float(bign))
+    sswn = sstot - ssbn
+    dfbn = na - 1
     dfwn = bign - na
-    msb = ssbn/float(dfbn)
-    msw = sswn/float(dfwn)
-    f = msb/msw
-    prob = fprob(dfbn,dfwn,f)
+    msb = ssbn / float(dfbn)
+    msw = sswn / float(dfwn)
+    f = msb / msw
+    prob = fprob(dfbn, dfwn, f)
     return f, prob
-
 
 
 def pearsonr(x, y):
@@ -2346,11 +2352,8 @@ def fisher_exact(table, alternative='two-sided'):
     if alternative == 'less':
         pvalue = hypergeom.cdf(c[0,0], n1 + n2, n1, n)
     elif alternative == 'greater':
-        if c[0, 0]:
-            x = c[0, 0] - 1
-        else:
-            x = c[0, 0]
-        pvalue = hypergeom.sf(x, n1 + n2, n1, n)
+        # Same formula as the 'less' case, but with the second column.
+        pvalue = hypergeom.cdf(c[0,1], n1 + n2, n1, c[0,1] + c[1,1])
     elif alternative == 'two-sided':
         mode = int(float((n + 1) * (n1 + 1)) / (n1 + n2 + 2))
         pexact = hypergeom.pmf(c[0,0], n1 + n2, n1, n)
@@ -3544,30 +3547,31 @@ def kruskal(*args):
     .. [1] http://en.wikipedia.org/wiki/Kruskal-Wallis_one-way_analysis_of_variance
 
     """
-    if len(args) < 2:
+    args = map(np.asarray, args) # convert to a numpy array
+    na = len(args)               # Kruskal-Wallis on 'na' groups, each in it's own array
+    if na < 2:
         raise ValueError("Need at least two groups in stats.kruskal()")
-    n = map(len,args)
-    all = []
-    for i in range(len(args)):
-        all.extend(args[i].tolist())
-    ranked = list(rankdata(all))
-    T = tiecorrect(ranked)
-    args = list(args)
-    for i in range(len(args)):
-        args[i] = ranked[0:n[i]]
-        del ranked[0:n[i]]
-    rsums = []
-    for i in range(len(args)):
-        rsums.append(np.sum(args[i],axis=0)**2)
-        rsums[i] = rsums[i] / float(n[i])
-    ssbn = np.sum(rsums,axis=0)
-    totaln = np.sum(n,axis=0)
-    h = 12.0 / (totaln*(totaln+1)) * ssbn - 3*(totaln+1)
-    df = len(args) - 1
+    n = np.asarray(map(len, args))
+    
+    alldata = np.concatenate(args)
+
+    ranked = rankdata(alldata)  # Rank the data
+    T = tiecorrect(ranked)      # Correct for ties
     if T == 0:
         raise ValueError('All numbers are identical in kruskal')
+    
+    # Compute sum^2/n for each group and sum
+    j = np.insert(np.cumsum(n), 0, 0)
+    ssbn = 0
+    for i in range(na):
+        ssbn += square_of_sums(ranked[j[i]:j[i+1]]) / float(n[i]) 
+        
+    totaln = np.sum(n)
+    h = 12.0 / (totaln * (totaln + 1)) * ssbn - 3 * (totaln + 1)
+    df = na - 1
     h = h / float(T)
-    return h, chisqprob(h,df)
+    return h, chisqprob(h, df)
+
 
 
 def friedmanchisquare(*args):

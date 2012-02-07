@@ -37,7 +37,7 @@ class csr_matrix(_cs_matrix):
 
         csr_matrix((data, indices, indptr), [shape=(M, N)])
             is the standard CSR representation where the column indices for
-            row i are stored in ``indices[indptr[i]:indices[i+1]]`` and their
+            row i are stored in ``indices[indptr[i]:indptr[i+1]]`` and their
             corresponding values are stored in ``data[indptr[i]:indptr[i+1]]``.
             If the shape parameter is not supplied, the matrix dimensions
             are inferred from the index arrays.
@@ -390,7 +390,5 @@ class csr_matrix(_cs_matrix):
 
 
 
-from sputils import _isinstance
-
 def isspmatrix_csr(x):
-    return _isinstance(x, csr_matrix)
+    return isinstance(x, csr_matrix)

@@ -50,6 +50,7 @@ Elliptic Functions and Integrals
 
    ellipj    -- Jacobian elliptic functions
    ellipk    -- Complete elliptic integral of the first kind.
+   ellipkm1  -- ellipkm1(x) == ellipk(1 - x)
    ellipkinc -- Incomplete elliptic integral of the first kind.
    ellipe    -- Complete elliptic integral of the second kind.
    ellipeinc -- Incomplete elliptic integral of the second kind.
@@ -224,6 +225,8 @@ Raw Statistical Functions
    kolmogorov -- The complementary CDF of the (scaled) two-sided test statistic (Kn*) valid for large n.
    kolmogi    -- Inverse of kolmogorov
    tklmbda    -- Tukey-Lambda CDF
+   logit      --
+   expit      --
 
 Gamma and Related Functions
 ---------------------------
@@ -527,6 +530,8 @@ import orthogonal
 from orthogonal import *
 from spfun_stats import multigammaln
 from lambertw import lambertw
+from _logit import logit, expit
+import add_newdocs
 
 __all__ = filter(lambda s:not s.startswith('_'),dir())
 
