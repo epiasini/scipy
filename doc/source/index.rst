@@ -1,7 +1,7 @@
 SciPy
 =====
 
-:Release: |version|
+:Release: |release|
 :Date: |today|
 
 SciPy (pronounced "Sigh Pie") is open-source software for mathematics,
@@ -15,6 +15,7 @@ science, and engineering.
 .. toctree::
    :maxdepth: 1
 
+   hacking
    api
    release
 
@@ -31,7 +32,6 @@ Reference
    interpolate
    io
    linalg
-   maxentropy
    misc
    ndimage
    odr
@@ -39,6 +39,7 @@ Reference
    signal
    sparse
    sparse.linalg
+   sparse.csgraph
    spatial
    special
    stats

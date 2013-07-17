@@ -3,47 +3,36 @@ HookFile: bscript
 Library:
     CompiledLibrary: sc_c_misc
         Sources:
-            c_misc/besselpoly.c,
-            c_misc/fsolve.c,
-            c_misc/gammaincinv.c
+            c_misc/*.c
     CompiledLibrary: sc_cephes
         Sources:
             cephes/*.c
     CompiledLibrary: sc_mach
         Sources:
-            mach/d1mach.f,
-            mach/i1mach.f,
-            mach/r1mach.f,
-            mach/xerror.f
-    CompiledLibrary: sc_toms
-        Sources:
-            toms/wofz.f
+            mach/*.f
     CompiledLibrary: sc_amos
         Sources:
             amos/*.f
     CompiledLibrary: sc_cdf
         Sources:
             cdflib/*.f
-    CompiledLibrary: sc_specfunlib
+    CompiledLibrary: sc_specfun
         Sources:
-            specfun/specfun.f
-    Extension: orthogonal_eval
+            specfun/*.f
+    Extension: _ufuncs
         Sources:
-            orthogonal_eval.c
-    Extension: lambertw
-        Sources:
-            lambertw.c
-    Extension: _logit
-        Sources:
-            _logit.c.src
-    Extension: _cephes
-        Sources:
-            _cephesmodule.c,
+            _ufuncs.c,
+            sf_error.c,
+            _logit.c.src,
             amos_wrappers.c,
-            specfun_wrappers.c,
-            toms_wrappers.c,
             cdf_wrappers.c,
-            ufunc_extras.c
+            specfun_wrappers.c
+    Extension: _ufuncs_cxx
+        Sources:
+            _ufuncs_cxx.cxx,
+            sf_error.c,
+            _faddeeva.cxx,
+            Faddeeva.cc
     Extension: specfun
          Sources:
             specfun.pyf

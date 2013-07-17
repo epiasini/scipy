@@ -20,10 +20,8 @@ DOCLINES = __doc__.split("\n")
 
 import os
 import sys
-import warnings
 import subprocess
 import shutil
-import re
 
 if sys.version_info[0] < 3:
     import __builtin__ as builtins
@@ -48,7 +46,7 @@ Operating System :: MacOS
 """
 
 MAJOR               = 0
-MINOR               = 11
+MINOR               = 13
 MICRO               = 0
 ISRELEASED          = False
 VERSION             = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
@@ -90,6 +88,28 @@ if os.path.exists('MANIFEST'):
 # a lot more robust than what was previously being used.
 builtins.__SCIPY_SETUP__ = True
 
+def get_version_info():
+    # Adding the git rev number needs to be done inside
+    # write_version_py(), otherwise the import of scipy.version messes
+    # up the build under Python 3.
+    FULLVERSION = VERSION
+    if os.path.exists('.git'):
+        GIT_REVISION = git_version()
+    elif os.path.exists('scipy/version.py'):
+        # must be a source distribution, use existing version file
+        # load it as a separate module to not load scipy/__init__.py
+        import imp
+        version = imp.load_source('scipy.version', 'scipy/version.py')
+        GIT_REVISION = version.git_revision
+    else:
+        GIT_REVISION = "Unknown"
+
+    if not ISRELEASED:
+        FULLVERSION += '.dev-' + GIT_REVISION[:7]
+
+    return FULLVERSION, GIT_REVISION
+
+
 def write_version_py(filename='scipy/version.py'):
     cnt = """
 # THIS FILE IS GENERATED FROM SCIPY SETUP.PY
@@ -102,20 +122,7 @@ release = %(isrelease)s
 if not release:
     version = full_version
 """
-    # Adding the git rev number needs to be done inside
-    # write_version_py(), otherwise the import of scipy.version messes
-    # up the build under Python 3.
-    FULLVERSION = VERSION
-    if os.path.exists('.git'):
-        GIT_REVISION = git_version()
-    elif os.path.exists('scipy/version.py'):
-        # must be a source distribution, use existing version file
-        from scipy.version import git_revision as GIT_REVISION
-    else:
-        GIT_REVISION = "Unknown"
-
-    if not ISRELEASED:
-        FULLVERSION += '.dev-' + GIT_REVISION[:7]
+    FULLVERSION, GIT_REVISION = get_version_info()
 
     a = open(filename, 'w')
     try:
@@ -125,6 +132,31 @@ if not release:
                        'isrelease': str(ISRELEASED)})
     finally:
         a.close()
+
+try:
+    from sphinx.setup_command import BuildDoc
+    HAVE_SPHINX = True
+except ImportError:
+    HAVE_SPHINX = False
+
+if HAVE_SPHINX:
+    class ScipyBuildDoc(BuildDoc):
+        """Run in-place build before Sphinx doc build"""
+        def run(self):
+            ret = subprocess.call([sys.executable, sys.argv[0], 'build_ext', '-i'])
+            if ret != 0:
+                raise RuntimeError("Building Scipy failed!")
+            BuildDoc.run(self)
+
+def generate_cython():
+    cwd = os.path.abspath(os.path.dirname(__file__))
+    print("Cythonizing sources")
+    p = subprocess.call([sys.executable,
+                          os.path.join(cwd, 'tools', 'cythonize.py'),
+                          'scipy'],
+                         cwd=cwd)
+    if p != 0:
+        raise RuntimeError("Running cythonize failed!")
 
 
 def configuration(parent_package='',top_path=None):
@@ -142,55 +174,57 @@ def configuration(parent_package='',top_path=None):
 
     return config
 
-
 def setup_package():
-    from numpy.distutils.core import setup
-
-    old_path = os.getcwd()
-    local_path = os.path.dirname(os.path.abspath(sys.argv[0]))
-    src_path = local_path
-    if sys.version_info[0] == 3:
-        src_path = os.path.join(local_path, 'build', 'py3k')
-        sys.path.insert(0, os.path.join(local_path, 'tools'))
-        import py3tool
-        print("Converting to Python3 via 2to3...")
-        py3tool.sync_2to3('scipy', os.path.join(src_path, 'scipy'))
-
-        site_cfg = os.path.join(local_path, 'site.cfg')
-        if os.path.isfile(site_cfg):
-            shutil.copy(site_cfg, src_path)
-
-    os.chdir(local_path)
-    sys.path.insert(0, local_path)
-    sys.path.insert(0, os.path.join(local_path, 'scipy'))  # to retrieve version
-
-    # Run build
-    old_path = os.getcwd()
-    os.chdir(src_path)
-    sys.path.insert(0, src_path)
 
     # Rewrite the version file everytime
     write_version_py()
 
-    try:
-        setup(
-            name = 'scipy',
-            maintainer = "SciPy Developers",
-            maintainer_email = "scipy-dev@scipy.org",
-            description = DOCLINES[0],
-            long_description = "\n".join(DOCLINES[2:]),
-            url = "http://www.scipy.org",
-            download_url = "http://sourceforge.net/project/showfiles.php?group_id=27747&package_id=19531",
-            license = 'BSD',
-            classifiers=[_f for _f in CLASSIFIERS.split('\n') if _f],
-            platforms = ["Windows", "Linux", "Solaris", "Mac OS-X", "Unix"],
-            configuration=configuration )
-    finally:
-        del sys.path[0]
-        os.chdir(old_path)
+    if HAVE_SPHINX:
+        cmdclass = {'build_sphinx': ScipyBuildDoc}
+    else:
+        cmdclass = {}
 
-    return
+    metadata = dict(
+        name = 'scipy',
+        maintainer = "SciPy Developers",
+        maintainer_email = "scipy-dev@scipy.org",
+        description = DOCLINES[0],
+        long_description = "\n".join(DOCLINES[2:]),
+        url = "http://www.scipy.org",
+        download_url = "http://sourceforge.net/project/showfiles.php?group_id=27747&package_id=19531",
+        license = 'BSD',
+        cmdclass=cmdclass,
+        classifiers=[_f for _f in CLASSIFIERS.split('\n') if _f],
+        platforms = ["Windows", "Linux", "Solaris", "Mac OS-X", "Unix"],
+        test_suite='nose.collector',
+    )
 
+    if len(sys.argv) >= 2 and ('--help' in sys.argv[1:] or
+            sys.argv[1] in ('--help-commands', 'egg_info', '--version',
+                            'clean')):
+        # For these actions, NumPy is not required.
+        #
+        # They are required to succeed without Numpy for example when
+        # pip is used to install Scipy when Numpy is not yet present in
+        # the system.
+        try:
+            from setuptools import setup
+        except ImportError:
+            from distutils.core import setup
+
+        FULLVERSION, GIT_REVISION = get_version_info()
+        metadata['version'] = FULLVERSION
+    else:
+        from numpy.distutils.core import setup
+
+        cwd = os.path.abspath(os.path.dirname(__file__))
+        if not os.path.exists(os.path.join(cwd, 'PKG-INFO')):
+            # Generate Cython sources, unless building from source release
+            generate_cython()
+
+        metadata['configuration'] = configuration
+
+    setup(**metadata)
 
 if __name__ == '__main__':
     setup_package()

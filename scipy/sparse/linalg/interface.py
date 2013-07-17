@@ -1,8 +1,11 @@
+from __future__ import division, print_function, absolute_import
+
 import numpy as np
 from scipy.sparse.sputils import isshape
 from scipy.sparse import isspmatrix
 
 __all__ = ['LinearOperator', 'aslinearoperator']
+
 
 class LinearOperator:
     """Common interface for performing matrix vector products
@@ -63,7 +66,7 @@ class LinearOperator:
         if not isshape(shape):
             raise ValueError('invalid shape')
 
-        self.shape  = shape
+        self.shape = shape
         self._matvec = matvec
 
         if rmatvec is None:
@@ -80,14 +83,12 @@ class LinearOperator:
         if dtype is not None:
             self.dtype = np.dtype(dtype)
 
-
     def _matmat(self, X):
         """Default matrix-matrix multiplication handler.  Falls back on
         the user-defined matvec() routine, which is always provided.
         """
 
-        return np.hstack( [ self.matvec(col.reshape(-1,1)) for col in X.T ] )
-
+        return np.hstack([self.matvec(col.reshape(-1,1)) for col in X.T])
 
     def matvec(self, x):
         """Matrix-vector multiplication
@@ -134,9 +135,7 @@ class LinearOperator:
         else:
             raise ValueError('invalid shape returned by user-defined matvec()')
 
-
         return y
-
 
     def matmat(self, X):
         """Matrix-matrix multiplication
@@ -179,7 +178,6 @@ class LinearOperator:
 
         return Y
 
-
     def __mul__(self,x):
         x = np.asarray(x)
 
@@ -190,6 +188,9 @@ class LinearOperator:
         else:
             raise ValueError('expected rank-1 or rank-2 array or matrix')
 
+    def dot(self, other):
+        # modeled after scipy.sparse.base.dot
+        return self * other
 
     def __repr__(self):
         M,N = self.shape
@@ -199,6 +200,7 @@ class LinearOperator:
             dt = 'unspecified dtype'
 
         return '<%dx%d LinearOperator with %s>' % (M,N,dt)
+
 
 class MatrixLinearOperator(LinearOperator):
     def __init__(self, A):
@@ -214,6 +216,7 @@ class MatrixLinearOperator(LinearOperator):
         if self.A_conj is None:
             self.A_conj = self.A.T.conj()
         return self.A_conj.dot(x)
+
 
 class IdentityOperator(LinearOperator):
     def __init__(self, shape, dtype):
@@ -231,6 +234,7 @@ class IdentityOperator(LinearOperator):
 
     def __mul__(self, x):
         return x
+
 
 def aslinearoperator(A):
     """Return A as a LinearOperator.

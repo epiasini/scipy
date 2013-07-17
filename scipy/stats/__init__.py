@@ -15,7 +15,6 @@ For each given name the following methods are available:
    :toctree: generated/
 
    rv_continuous
-   rv_continuous.rvs
    rv_continuous.pdf
    rv_continuous.logpdf
    rv_continuous.cdf
@@ -29,11 +28,6 @@ For each given name the following methods are available:
    rv_continuous.entropy
    rv_continuous.fit
    rv_continuous.expect
-   rv_continuous.median
-   rv_continuous.mean
-   rv_continuous.var
-   rv_continuous.std
-   rv_continuous.interval
 
 Calling the instance as a function returns a frozen pdf whose shape,
 location, and scale parameters are fixed.
@@ -58,11 +52,6 @@ rv_discrete:
    rv_discrete.moment
    rv_discrete.entropy
    rv_discrete.expect
-   rv_discrete.median
-   rv_discrete.mean
-   rv_discrete.var
-   rv_discrete.std
-   rv_discrete.interval
 
 Continuous distributions
 ========================
@@ -70,7 +59,6 @@ Continuous distributions
 .. autosummary::
    :toctree: generated/
 
-   norm              -- Normal (Gaussian)
    alpha             -- Alpha
    anglit            -- Anglit
    arcsine           -- Arcsine
@@ -130,7 +118,9 @@ Continuous distributions
    ncx2              -- Non-central chi-squared
    ncf               -- Non-central F
    nct               -- Non-central Student's T
+   norm              -- Normal (Gaussian)
    pareto            -- Pareto
+   pearson3          -- Pearson type III
    powerlaw          -- Power-function
    powerlognorm      -- Power log normal
    powernorm         -- Power normal
@@ -158,19 +148,19 @@ Discrete distributions
 .. autosummary::
    :toctree: generated/
 
-    bernoulli         -- Bernoulli
-    binom             -- Binomial
-    boltzmann         -- Boltzmann (Truncated Discrete Exponential)
-    dlaplace          -- Discrete Laplacian
-    geom              -- Geometric
-    hypergeom         -- Hypergeometric
-    logser            -- Logarithmic (Log-Series, Series)
-    nbinom            -- Negative Binomial
-    planck            -- Planck (Discrete Exponential)
-    poisson           -- Poisson
-    randint           -- Discrete Uniform
-    skellam           -- Skellam
-    zipf              -- Zipf
+   bernoulli         -- Bernoulli
+   binom             -- Binomial
+   boltzmann         -- Boltzmann (Truncated Discrete Exponential)
+   dlaplace          -- Discrete Laplacian
+   geom              -- Geometric
+   hypergeom         -- Hypergeometric
+   logser            -- Logarithmic (Log-Series, Series)
+   nbinom            -- Negative Binomial
+   planck            -- Planck (Discrete Exponential)
+   poisson           -- Poisson
+   randint           -- Discrete Uniform
+   skellam           -- Skellam
+   zipf              -- Zipf
 
 Statistical functions
 =====================
@@ -181,35 +171,45 @@ which work for masked arrays.
 .. autosummary::
    :toctree: generated/
 
-    gmean             -- Geometric mean
-    hmean             -- Harmonic mean
-    cmedian           -- Computed median
-    mode              -- Modal value
-    tmean             -- Truncated arithmetic mean
-    tvar              -- Truncated variance
-    tmin              _
-    tmax              _
-    tstd              _
-    tsem              _
-    moment            -- Central moment
-    variation         -- Coefficient of variation
-    skew              -- Skewness
-    kurtosis          -- Fisher or Pearson kurtosis
-    describe          -- Descriptive statistics
-    skewtest          _
-    kurtosistest      _
-    normaltest        _
+   cmedian           -- Computed median
+   describe          -- Descriptive statistics
+   gmean             -- Geometric mean
+   hmean             -- Harmonic mean
+   kurtosis          -- Fisher or Pearson kurtosis
+   kurtosistest      --
+   mode              -- Modal value
+   moment            -- Central moment
+   normaltest        --
+   skew              -- Skewness
+   skewtest          --
+   tmean             -- Truncated arithmetic mean
+   tvar              -- Truncated variance
+   tmin              --
+   tmax              --
+   tstd              --
+   tsem              --
+   nanmean           -- Mean, ignoring NaN values
+   nanstd            -- Standard deviation, ignoring NaN values
+   nanmedian         -- Median, ignoring NaN values
+   variation         -- Coefficient of variation
 
 .. autosummary::
    :toctree: generated/
 
-    itemfreq          _
-    scoreatpercentile _
-    percentileofscore _
-    histogram2        _
-    histogram         _
-    cumfreq           _
-    relfreq           _
+   cumfreq           _
+   histogram2        _
+   histogram         _
+   itemfreq          _
+   percentileofscore _
+   scoreatpercentile _
+   relfreq           _
+
+.. autosummary::
+   :toctree: generated/
+
+   binned_statistic     -- Compute a binned statistic for a set of data.
+   binned_statistic_2d  -- Compute a 2-D binned statistic for a set of data.
+   binned_statistic_dd  -- Compute a d-D binned statistic for a set of data.
 
 .. autosummary::
    :toctree: generated/
@@ -249,6 +249,7 @@ which work for masked arrays.
    ks_2samp
    mannwhitneyu
    tiecorrect
+   rankdata
    ranksums
    wilcoxon
    kruskal
@@ -273,10 +274,10 @@ Contingency table functions
 .. autosummary::
    :toctree: generated/
 
-   fisher_exact
    chi2_contingency
    contingency.expected_freq
    contingency.margins
+   fisher_exact
 
 General linear model
 ====================
@@ -292,9 +293,9 @@ Plot-tests
 .. autosummary::
    :toctree: generated/
 
-   probplot
    ppcc_max
    ppcc_plot
+   probplot
 
 
 Masked statistics functions
@@ -317,17 +318,19 @@ For many more stat related functions install the software R and the
 interface package rpy.
 
 """
+from __future__ import division, print_function, absolute_import
 
-from stats import *
-from distributions import *
-from rv import *
-from morestats import *
-from kde import gaussian_kde
-import mstats
-from contingency import chi2_contingency
+from .stats import *
+from .distributions import *
+from .rv import *
+from .morestats import *
+from ._binned_statistic import *
+from .kde import gaussian_kde
+from . import mstats
+from .contingency import chi2_contingency
 
 #remove vonmises_cython from __all__, I don't know why it is included
-__all__ = filter(lambda s:not (s.startswith('_') or s.endswith('cython')),dir())
+__all__ = [s for s in dir() if not (s.startswith('_') or s.endswith('cython'))]
 
 from numpy.testing import Tester
 test = Tester().test

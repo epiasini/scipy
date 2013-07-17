@@ -2,22 +2,21 @@ from bento.commands import hooks
 
 @hooks.pre_build
 def pre_build(context):
-    default_builder = context.default_builder
+    context.waf_context.env.INCLUDES.append(".")
 
-    def builder(extension):
-        return default_builder(extension,  use="NPYMATH")
-    context.register_builder("orthogonal_eval", builder)
-    context.register_builder("lambertw", builder)
-    context.register_builder("_logit", builder)
+    context.tweak_extension("orthogonal_eval", use="NPYMATH")
+    context.tweak_extension("lambertw", use="NPYMATH")
+    context.tweak_extension("_logit", use="NPYMATH")
 
-    def builder(extension):
-        return default_builder(extension,
-                               features="c pyext cshlib bento f2py",
-                               use="sc_specfunlib NPYMATH CLIB")
-    context.register_builder("specfun", builder)
+    context.tweak_extension("specfun", features="c fc pyext cshlib bento f2py",
+                             use="sc_specfun NPYMATH CLIB")
 
-    def builder(extension):
-        return default_builder(extension, 
-                               use="sc_amos sc_toms sc_c_misc sc_cephes sc_mach " \
-                                   "sc_cdf sc_specfunlib NPYMATH CLIB")
-    context.register_builder("_cephes", builder)
+    context.tweak_extension("_cephes",
+                          use="sc_amos sc_toms sc_c_misc sc_cephes sc_mach " \
+                              "sc_cdf sc_specfun NPYMATH CLIB")
+
+    context.tweak_extension("_ufuncs_cxx", features="cxx cxxshlib pyext bento",
+                            use="sc_cephes NPYMATH")
+
+    context.tweak_extension("_ufuncs",
+                            use="sc_amos sc_c_misc sc_cephes sc_mach sc_cdf sc_specfun NPYMATH CLIB")

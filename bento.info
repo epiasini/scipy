@@ -1,5 +1,5 @@
 Name: scipy
-Version: 0.10.0
+Version: 0.13.0
 Summary: SciPy: Scientific Library for Python
 Url: http://www.scipy.org
 DownloadUrl: http://sourceforge.net/project/showfiles.php?group_id=27747&package_id=19531
@@ -37,46 +37,25 @@ DataFiles: tests
     TargetDir: $sitedir/scipy
     SourceDir: scipy
     Files:
-        constants/tests/*.py,
-        cluster/tests/*.py,
+        **/tests/*.py,
         cluster/tests/*.txt,
-        fftpack/tests/*.py,
         fftpack/tests/*.npz,
-        integrate/tests/*.py,
-        interpolate/tests/*.py,
-        io/arff/tests/*.py,
-        io/matlab/tests/*.py,
-        io/tests/*.py,
+        io/arff/tests/data/*.arff,
+        io/matlab/tests/data/*.txt,
+        io/matlab/tests/data/*.mat,
         io/tests/data/*.nc,
         io/tests/data/*.wav,
         io/tests/data/*.sav,
-        io/matlab/tests/data/*.txt,
-        io/matlab/tests/data/*.mat,
-        io/arff/tests/data/*.arff,
-        lib/blas/tests/*.py,
-        lib/lapack/tests/*.py,
-        linalg/tests/*.py,
-        misc/tests/*.py,
         misc/tests/data/*.png,
-        optimize/tests/*.py,
-        signal/tests/*.py,
-        sparse/linalg/dsolve/tests/*.py,
-        sparse/linalg/dsolve/umfpack/tests/*.py,
-        sparse/linalg/eigen/arpack/tests/*.py,
-        sparse/linalg/eigen/lobpcg/tests/*.py,
-        sparse/linalg/isolve/tests/*.py,
-        sparse/linalg/tests/*.py,
-        sparse/tests/*.py,
-        spatial/tests/*.py,
-        spatial/tests/*.txt,
-        special/tests/*.py,
-        special/tests/*.dat,
+        spatial/tests/data/*.txt,
         special/tests/data/*.npz,
-        stats/tests/*.py
+        weave/scxx/*.h,
+        weave/scxx/*.cpp
 
 Recurse: scipy
 
 HookFile: bscript
+UseBackends: Waf
 
 Library:
     Packages:

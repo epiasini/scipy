@@ -1,3 +1,5 @@
+from __future__ import absolute_import, print_function
+
 import sys
 import os
 
@@ -77,9 +79,10 @@ class TestGetCatalog(TestCase):
         catalog_dir tests.
     """
 
-    def get_test_dir(self,erase = 0):
+    def get_test_dir(self,erase=0):
         # make sure tempdir catalog doesn't exist
-        import tempfile, glob
+        import tempfile
+        import glob
         #temp = tempfile.gettempdir()
         pardir = tempfile.mktemp(suffix='cat_test')
         if not os.path.exists(pardir):
@@ -144,8 +147,10 @@ class TestCatalog(TestCase):
         assert_(r is None)
 
     def test_get_environ_path(self):
-        if sys.platform == 'win32': sep = ';'
-        else: sep = ':'
+        if sys.platform == 'win32':
+            sep = ';'
+        else:
+            sep = ':'
         os.environ['PYTHONCOMPILED'] = sep.join(('path1','path2','path3'))
         q = catalog.catalog()
         path = q.get_environ_path()
@@ -351,7 +356,7 @@ class TestCatalog(TestCase):
         #assert_(funcs2 == [os.chdir,os.abort,string.replace,string.find])
         #assert_(funcs3 == [re.purge,re.match,os.open,
         #                  os.access,string.atoi,string.atof])
-        assert_(funcs1[:2] == [string.lower,string.upper]),`funcs1`
+        assert_(funcs1[:2] == [string.lower,string.upper]),repr(funcs1)
         assert_(funcs2[:4] == [os.chdir,os.abort,string.replace,string.find])
         assert_(funcs3[:6] == [re.purge,re.match,os.open,
                           os.access,string.atoi,string.atof])

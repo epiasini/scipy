@@ -30,6 +30,7 @@
     along with the path information to its module, are also stored in a
     persistent catalog for future use by python sessions.
 """
+from __future__ import absolute_import, print_function
 
 import os
 import sys
@@ -42,15 +43,16 @@ try:
     import shelve
     dumb = 0
 except ImportError:
-    import scipy.io.dumb_shelve as shelve
+    from . import _dumb_shelve as shelve
     dumb = 1
 
-#For testing...
-#import scipy.io.dumb_shelve as shelve
-#dumb = 1
+# For testing...
+# import scipy.io.dumb_shelve as shelve
+# dumb = 1
 
-#import shelve
-#dumb = 0
+# import shelve
+# dumb = 0
+
 
 def getmodule(object):
     """ Discover the name of the module where object was defined.
@@ -61,7 +63,7 @@ def getmodule(object):
     import inspect
     value = inspect.getmodule(object)
     if value is None:
-        #walk trough all modules looking for function
+        # walk trough all modules looking for function
         for name,mod in sys.modules.items():
             # try except used because of some comparison failures
             # in wxPoint code.  Need to review this
@@ -79,6 +81,7 @@ def getmodule(object):
                 pass
     return value
 
+
 def expr_to_filename(expr):
     """ Convert an arbitrary expr string to a valid file name.
 
@@ -89,6 +92,7 @@ def expr_to_filename(expr):
     import scipy.weave.md5_load as md5
     base = 'sc_'
     return base + md5.new(expr).hexdigest()
+
 
 def unique_file(d,expr):
     """ Generate a unqiue file name based on expr in directory d
@@ -101,10 +105,10 @@ def unique_file(d,expr):
         extension to it before creating files.
     """
     files = os.listdir(d)
-    #base = 'scipy_compile'
+    # base = 'scipy_compile'
     base = expr_to_filename(expr)
     for i in xrange(1000000):
-        fname = base + `i`
+        fname = base + repr(i)
         if not (fname+'.cpp' in files or
                 fname+'.o' in files or
                 fname+'.so' in files or
@@ -114,26 +118,13 @@ def unique_file(d,expr):
             break
     return os.path.join(d,fname)
 
-def create_dir(p):
-    """ Create a directory and any necessary intermediate directories."""
-    if not os.path.exists(p):
-        try:
-            os.mkdir(p)
-        except OSError:
-            # perhaps one or more intermediate path components don't exist
-            # try to create them
-            base,dir = os.path.split(p)
-            create_dir(base)
-            # don't enclose this one in try/except - we want the user to
-            # get failure info
-            os.mkdir(p)
 
 def is_writable(dir):
     """Determine whether a given directory is writable in a portable manner.
 
     Parameters
     ----------
-    dir: str
+    dir : str
         A string represeting a path to a directory on the filesystem.
 
     Returns
@@ -141,6 +132,8 @@ def is_writable(dir):
     res : bool
         True or False.
     """
+    if not os.path.isdir(dir):
+        return False
 
     # Do NOT use a hardcoded name here due to the danger from race conditions
     # on NFS when multiple processes are accessing the same base directory in
@@ -157,9 +150,11 @@ def is_writable(dir):
     tmp.close()
     return True
 
+
 def whoami():
     """return a string identifying the user."""
     return os.environ.get("USER") or os.environ.get("USERNAME") or "unknown"
+
 
 def default_dir():
     """ Return a default location to store compiled files and catalogs.
@@ -194,7 +189,7 @@ def default_dir():
         except KeyError:
             pass
 
-        temp_dir = `os.getuid()` + '_' + python_name
+        temp_dir = repr(os.getuid()) + '_' + python_name
         path_candidates.append(os.path.join(tempfile.gettempdir(), temp_dir))
     else:
         path_candidates.append(os.path.join(tempfile.gettempdir(),
@@ -203,15 +198,17 @@ def default_dir():
     writable = False
     for path in path_candidates:
         if not os.path.exists(path):
-            create_dir(path)
-            os.chmod(path, 0700) # make it only accessible by this user.
+            try:
+                os.makedirs(path, mode=0o700)
+            except OSError:
+                continue
         if is_writable(path):
             writable = True
             break
 
     if not writable:
-        print 'warning: default directory is not write accessible.'
-        print 'default:', path
+        print('warning: default directory is not write accessible.')
+        print('default:', path)
 
     # Cache the default dir path so that this function returns quickly after
     # being called once (nothing in it should change after the first call)
@@ -219,24 +216,25 @@ def default_dir():
 
     return path
 
+
 def intermediate_dir():
     """ Location in temp dir for storing .cpp and .o  files during
         builds.
     """
     python_name = "python%d%d_intermediate" % tuple(sys.version_info[:2])
-    path = os.path.join(tempfile.gettempdir(),"%s"%whoami(),python_name)
+    path = os.path.join(tempfile.gettempdir(),"%s" % whoami(),python_name)
     if not os.path.exists(path):
-        create_dir(path)
+        os.makedirs(path, mode=0o700)
     return path
+
 
 def default_temp_dir():
     path = os.path.join(default_dir(),'temp')
     if not os.path.exists(path):
-        create_dir(path)
-        os.chmod(path,0700) # make it only accessible by this user.
+        os.makedirs(path, mode=0o700)
     if not is_writable(path):
-        print 'warning: default directory is not write accessible.'
-        print 'default:', path
+        print('warning: default directory is not write accessible.')
+        print('default:', path)
     return path
 
 
@@ -253,6 +251,7 @@ def os_dependent_catalog_name():
     """
     version = '%d%d' % sys.version_info[:2]
     return sys.platform+version+'compiled_catalog'
+
 
 def catalog_path(module_path):
     """ Return the full path name for the catalog file in the given directory.
@@ -281,6 +280,7 @@ def catalog_path(module_path):
         catalog_file = os.path.join(module_path,os_dependent_catalog_name())
     return catalog_file
 
+
 def get_catalog(module_path,mode='r'):
     """ Return a function catalog (shelve object) from the path module_path
 
@@ -301,15 +301,16 @@ def get_catalog(module_path,mode='r'):
         raise ValueError(msg)
     catalog_file = catalog_path(module_path)
     if (catalog_file is not None) \
-           and ((dumb and os.path.exists(catalog_file+'.dat')) \
+           and ((dumb and os.path.exists(catalog_file+'.dat'))
                 or os.path.exists(catalog_file)):
         sh = shelve.open(catalog_file,mode)
     else:
-        if mode=='r':
+        if mode == 'r':
             sh = None
         else:
             sh = shelve.open(catalog_file,mode)
     return sh
+
 
 class catalog(object):
     """ Stores information about compiled functions both in cache and on disk.
@@ -365,10 +366,12 @@ class catalog(object):
             working with it.
         """
         self.module_dir = module_dir
+
     def get_module_directory(self):
         """ Return the path used to replace the 'MODULE' in searches.
         """
         return self.module_dir
+
     def clear_module_directory(self):
         """ Reset 'MODULE' path to None so that it is ignored in searches.
         """
@@ -435,7 +438,7 @@ class catalog(object):
                 existing_files.append(file)
                 cat.close()
         # This is the non-portable (and much faster) old code
-        #existing_files = filter(os.path.exists,files)
+        # existing_files = filter(os.path.exists,files)
         return existing_files
 
     def get_writable_file(self,existing_only=0):
@@ -450,6 +453,7 @@ class catalog(object):
         else:
             files = self.get_catalog_files()
         # filter for (file exists and is writable) OR directory is writable
+
         def file_test(x):
             from os import access, F_OK, W_OK
             return (access(x,F_OK) and access(x,W_OK) or
@@ -535,7 +539,7 @@ class catalog(object):
                 self.configure_path(cat,code)
                 try:
                     function_list += cat[code]
-                except: #SystemError and ImportError so far seen
+                except:  # SystemError and ImportError so far seen
                     # problems loading a function from the catalog.  Try to
                     # repair the cause.
                     cat.close()
@@ -545,7 +549,6 @@ class catalog(object):
                 # ensure that the catalog is properly closed
                 cat.close()
         return function_list
-
 
     def repair_catalog(self,catalog_path,code):
         """ Remove entry for code from catalog_path
@@ -565,14 +568,14 @@ class catalog(object):
         try:
             writable_cat = get_catalog(catalog_path,'w')
         except:
-            print 'warning: unable to repair catalog entry\n %s\n in\n %s' % \
-                  (code,catalog_path)
+            print('warning: unable to repair catalog entry\n %s\n in\n %s' %
+                  (code,catalog_path))
             # shelve doesn't guarantee flushing, so it's safest to explicitly
             # close the catalog
             writable_cat.close()
             return
         if code in writable_cat:
-            print 'repairing catalog by removing key'
+            print('repairing catalog by removing key')
             del writable_cat[code]
 
         # it is possible that the path key doesn't exist (if the function
@@ -667,7 +670,7 @@ class catalog(object):
             matter what the user's Python path is.
         """
         # add function to data in first writable catalog
-        mode = 'c' # create if doesn't exist, otherwise, use existing
+        mode = 'c'  # create if doesn't exist, otherwise, use existing
         cat_dir = self.get_writable_dir()
         cat = get_catalog(cat_dir,mode)
         if cat is None:
@@ -676,7 +679,7 @@ class catalog(object):
         if cat is None:
             cat_dir = default_dir()
             cat_file = catalog_path(cat_dir)
-            print 'problems with default catalog -- removing'
+            print('problems with default catalog -- removing')
             import glob
             files = glob.glob(cat_file+'*')
             for f in files:
@@ -698,7 +701,7 @@ class catalog(object):
             # built in modules don't have the __file__ extension, so this
             # will fail.  Just pass in this case since path additions aren't
             # needed for built-in modules.
-            mod_path,f=os.path.split(os.path.abspath(module.__file__))
+            mod_path,f = os.path.split(os.path.abspath(module.__file__))
             pkey = self.path_key(code)
             cat[pkey] = [mod_path] + cat.get(pkey,[])
         except:
@@ -720,7 +723,7 @@ class catalog(object):
         try:
             if self.cache[code][0] == function:
                 return
-        except: # KeyError, IndexError
+        except:  # KeyError, IndexError
             pass
         try:
             self.cache[code].remove(function)

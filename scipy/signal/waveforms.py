@@ -4,6 +4,8 @@
 # Feb. 2010: Updated by Warren Weckesser:
 #   Rewrote much of chirp()
 #   Added sweep_poly()
+from __future__ import division, print_function, absolute_import
+
 
 from numpy import asarray, zeros, place, nan, mod, pi, extract, log, sqrt, \
      exp, cos, sin, polyval, polyint
@@ -13,18 +15,26 @@ __all__ = ['sawtooth', 'square', 'gausspulse', 'chirp', 'sweep_poly']
 
 def sawtooth(t, width=1):
     """
-    Return a periodic sawtooth waveform.
+    Return a periodic sawtooth or triangle waveform.
 
-    The sawtooth waveform has a period 2*pi, rises from -1 to 1 on the
-    interval 0 to width*2*pi and drops from 1 to -1 on the interval
-    width*2*pi to 2*pi. `width` must be in the interval [0,1].
+    The sawtooth waveform has a period ``2*pi``, rises from -1 to 1 on the
+    interval 0 to ``width*2*pi``, then drops from 1 to -1 on the interval
+    ``width*2*pi`` to ``2*pi``. `width` must be in the interval [0, 1].
+
+    Note that this is not band-limited.  It produces an infinite number
+    of harmonics, which are aliased back and forth across the frequency
+    spectrum.
 
     Parameters
     ----------
     t : array_like
         Time.
-    width : float, optional
-        Width of the waveform. Default is 1.
+    width : array_like, optional
+        Width of the rising ramp as a proportion of the total cycle.
+        Default is 1, producing a rising ramp, while 0 produces a falling
+        ramp.  `t` = 0.5 produces a triangle wave.
+        If an array, causes wave shape to change over time, and must be the
+        same length as t.
 
     Returns
     -------
@@ -33,9 +43,12 @@ def sawtooth(t, width=1):
 
     Examples
     --------
+    A 5 Hz waveform sampled at 500 Hz for 1 second:
+
+    >>> from scipy import signal
     >>> import matplotlib.pyplot as plt
-    >>> x = np.linspace(0, 20*np.pi, 500)
-    >>> plt.plot(x, sp.signal.sawtooth(x))
+    >>> t = np.linspace(0, 1, 500)
+    >>> plt.plot(t, signal.sawtooth(2 * np.pi * 5 * t))
 
     """
     t, w = asarray(t), asarray(width)
@@ -75,20 +88,48 @@ def square(t, duty=0.5):
     """
     Return a periodic square-wave waveform.
 
-    The square wave has a period 2*pi, has value +1 from 0 to 2*pi*duty
-    and -1 from 2*pi*duty to 2*pi. `duty` must be in the interval [0,1].
+    The square wave has a period ``2*pi``, has value +1 from 0 to
+    ``2*pi*duty`` and -1 from ``2*pi*duty`` to ``2*pi``. `duty` must be in
+    the interval [0,1].
+
+    Note that this is not band-limited.  It produces an infinite number
+    of harmonics, which are aliased back and forth across the frequency
+    spectrum.
 
     Parameters
     ----------
     t : array_like
         The input time array.
-    duty : float, optional
-        Duty cycle.
+    duty : array_like, optional
+        Duty cycle.  Default is 0.5 (50% duty cycle).
+        If an array, causes wave shape to change over time, and must be the
+        same length as t.
 
     Returns
     -------
-    y : array_like
-        The output square wave.
+    y : ndarray
+        Output array containing the square waveform.
+
+    Examples
+    --------
+    A 5 Hz waveform sampled at 500 Hz for 1 second:
+
+    >>> from scipy import signal
+    >>> import matplotlib.pyplot as plt
+    >>> t = np.linspace(0, 1, 500, endpoint=False)
+    >>> plt.plot(t, signal.square(2 * np.pi * 5 * t))
+    >>> plt.ylim(-2, 2)
+
+    A pulse-width modulated sine wave:
+
+    >>> plt.figure()
+    >>> sig = np.sin(2 * np.pi * t)
+    >>> pwm = signal.square(2 * np.pi * 30 * t, duty=(sig + 1)/2)
+    >>> plt.subplot(2, 1, 1)
+    >>> plt.plot(t, sig)
+    >>> plt.subplot(2, 1, 2)
+    >>> plt.plot(t, pwm)
+    >>> plt.ylim(-1.5, 1.5)
 
     """
     t, w = asarray(t), asarray(duty)
@@ -98,28 +139,21 @@ def square(t, duty=0.5):
         ytype = t.dtype.char
     else:
         ytype = 'd'
+
     y = zeros(t.shape, ytype)
 
     # width must be between 0 and 1 inclusive
     mask1 = (w > 1) | (w < 0)
     place(y, mask1, nan)
 
-    # take t modulo 2*pi
+    # on the interval 0 to duty*2*pi function is 1
     tmod = mod(t, 2 * pi)
-
-    # on the interval 0 to duty*2*pi function is
-    #  1
     mask2 = (1 - mask1) & (tmod < w * 2 * pi)
-    tsub = extract(mask2, tmod)
-    wsub = extract(mask2, w)
     place(y, mask2, 1)
 
     # on the interval duty*2*pi to 2*pi function is
     #  (pi*(w+1)-tmod) / (pi*(1-w))
-
     mask3 = (1 - mask1) & (1 - mask2)
-    tsub = extract(mask3, tmod)
-    wsub = extract(mask3, w)
     place(y, mask3, -1)
     return y
 
@@ -127,7 +161,9 @@ def square(t, duty=0.5):
 def gausspulse(t, fc=1000, bw=0.5, bwr=-6, tpr=-60, retquad=False,
                retenv=False):
     """
-    Return a gaussian modulated sinusoid: exp(-a t^2) exp(1j*2*pi*fc*t).
+    Return a Gaussian modulated sinusoid:
+
+        ``exp(-a t^2) exp(1j*2*pi*fc*t).``
 
     If `retquad` is True, then return the real and imaginary parts
     (in-phase and quadrature).
@@ -136,14 +172,14 @@ def gausspulse(t, fc=1000, bw=0.5, bwr=-6, tpr=-60, retquad=False,
 
     Parameters
     ----------
-    t : ndarray, or the string 'cutoff'
+    t : ndarray or the string 'cutoff'
         Input array.
     fc : int, optional
-        Center frequency (Hz).  Default is 1000.
+        Center frequency (e.g. Hz).  Default is 1000.
     bw : float, optional
-        Fractional bandwidth in frequency domain of pulse (Hz).
+        Fractional bandwidth in frequency domain of pulse (e.g. Hz).
         Default is 0.5.
-    bwr: float, optional
+    bwr : float, optional
         Reference level at which fractional bandwidth is calculated (dB).
         Default is -6.
     tpr : float, optional
@@ -155,6 +191,30 @@ def gausspulse(t, fc=1000, bw=0.5, bwr=-6, tpr=-60, retquad=False,
         of the signal.  Default is False.
     retenv : bool, optional
         If True, return the envelope of the signal.  Default is False.
+
+    Returns
+    -------
+    yI : ndarray
+        Real part of signal.  Always returned.
+    yQ : ndarray
+        Imaginary part of signal.  Only returned if `retquad` is True.
+    yenv : ndarray
+        Envelope of signal.  Only returned if `retenv` is True.
+
+    See Also
+    --------
+    scipy.signal.morlet
+
+    Examples
+    --------
+    Plot real component, imaginary component, and envelope for a 5 Hz pulse,
+    sampled at 100 Hz for 2 seconds:
+
+    >>> from scipy import signal
+    >>> import matplotlib.pyplot as plt
+    >>> t = np.linspace(-1, 1, 2 * 100, endpoint=False)
+    >>> i, q, e = signal.gausspulse(t, fc=5, retquad=True, retenv=True)
+    >>> plt.plot(t, i, t, q, t, e, '--')
 
     """
     if fc < 0:
@@ -197,21 +257,21 @@ def gausspulse(t, fc=1000, bw=0.5, bwr=-6, tpr=-60, retquad=False,
 def chirp(t, f0, t1, f1, method='linear', phi=0, vertex_zero=True):
     """Frequency-swept cosine generator.
 
-    In the following, 'Hz' should be interpreted as 'cycles per time unit';
-    there is no assumption here that the time unit is one second.  The
+    In the following, 'Hz' should be interpreted as 'cycles per unit';
+    there is no requirement here that the unit is one second.  The
     important distinction is that the units of rotation are cycles, not
-    radians.
+    radians. Likewise, `t` could be a measurement of space instead of time.
 
     Parameters
     ----------
     t : ndarray
         Times at which to evaluate the waveform.
     f0 : float
-        Frequency (in Hz) at time t=0.
+        Frequency (e.g. Hz) at time t=0.
     t1 : float
         Time at which `f1` is specified.
     f1 : float
-        Frequency (in Hz) of the waveform at time `t1`.
+        Frequency (e.g. Hz) of the waveform at time `t1`.
     method : {'linear', 'quadratic', 'logarithmic', 'hyperbolic'}, optional
         Kind of frequency sweep.  If not given, `linear` is assumed.  See
         Notes below for more details.
@@ -224,17 +284,15 @@ def chirp(t, f0, t1, f1, method='linear', phi=0, vertex_zero=True):
 
     Returns
     -------
-    A numpy array containing the signal evaluated at 't' with the requested
-    time-varying frequency.  More precisely, the function returns:
-
-        ``cos(phase + (pi/180)*phi)``
-
-    where `phase` is the integral (from 0 to t) of ``2*pi*f(t)``.
-    ``f(t)`` is defined below.
+    y : ndarray
+        A numpy array containing the signal evaluated at `t` with the
+        requested time-varying frequency.  More precisely, the function
+        returns ``cos(phase + (pi/180)*phi)`` where `phase` is the integral
+        (from 0 to `t`) of ``2*pi*f(t)``. ``f(t)`` is defined below.
 
     See Also
     --------
-    scipy.signal.waveforms.sweep_poly
+    sweep_poly
 
     Notes
     -----
@@ -280,7 +338,6 @@ def chirp(t, f0, t1, f1, method='linear', phi=0, vertex_zero=True):
         f1 must be positive, and f0 must be greater than f1.
 
     """
-
     # 'phase' is computed in _chirp_phase, to make testing easier.
     phase = _chirp_phase(t, f0, t1, f1, method, vertex_zero)
     # Convert  phi to radians.
@@ -334,8 +391,8 @@ def _chirp_phase(t, f0, t1, f1, method='linear', vertex_zero=True):
 
 
 def sweep_poly(t, poly, phi=0):
-    """Frequency-swept cosine generator, with a time-dependent frequency
-    specified as a polynomial.
+    """
+    Frequency-swept cosine generator, with a time-dependent frequency.
 
     This function generates a sinusoidal function whose instantaneous
     frequency varies with time.  The frequency at time `t` is given by
@@ -345,7 +402,7 @@ def sweep_poly(t, poly, phi=0):
     ----------
     t : ndarray
         Times at which to evaluate the waveform.
-    poly : 1D ndarray (or array-like), or instance of numpy.poly1d
+    poly : 1-D array-like or instance of numpy.poly1d
         The desired frequency expressed as a polynomial.  If `poly` is
         a list or ndarray of length n, then the elements of `poly` are
         the coefficients of the polynomial, and the instantaneous
@@ -359,25 +416,42 @@ def sweep_poly(t, poly, phi=0):
           ``f(t) = poly(t)``
 
     phi : float, optional
-        Phase offset, in degrees. Default is 0.
+        Phase offset, in degrees, Default: 0.
 
     Returns
     -------
-    A numpy array containing the signal evaluated at 't' with the requested
-    time-varying frequency.  More precisely, the function returns
-
-        ``cos(phase + (pi/180)*phi)``
-
-    where `phase` is the integral (from 0 to t) of ``2 * pi * f(t)``;
-    ``f(t)`` is defined above.
+    sweep_poly : ndarray
+        A numpy array containing the signal evaluated at `t` with the
+        requested time-varying frequency.  More precisely, the function
+        returns ``cos(phase + (pi/180)*phi)``, where `phase` is the integral
+        (from 0 to t) of ``2 * pi * f(t)``; ``f(t)`` is defined above.
 
     See Also
     --------
-    scipy.signal.waveforms.chirp
+    chirp
 
     Notes
     -----
     .. versionadded:: 0.8.0
+
+    If `poly` is a list or ndarray of length `n`, then the elements of
+    `poly` are the coefficients of the polynomial, and the instantaneous
+    frequency is:
+
+        ``f(t) = poly[0]*t**(n-1) + poly[1]*t**(n-2) + ... + poly[n-1]``
+
+    If `poly` is an instance of `numpy.poly1d`, then the instantaneous
+    frequency is:
+
+          ``f(t) = poly(t)``
+
+    Finally, the output `s` is:
+
+        ``cos(phase + (pi/180)*phi)``
+
+    where `phase` is the integral from 0 to `t` of ``2 * pi * f(t)``,
+    ``f(t)`` as defined above.
+
     """
     # 'phase' is computed in _sweep_poly_phase, to make testing easier.
     phase = _sweep_poly_phase(t, poly)

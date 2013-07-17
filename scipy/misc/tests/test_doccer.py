@@ -1,5 +1,7 @@
 ''' Some tests for the documenting decorator and support functions '''
 
+from __future__ import division, print_function, absolute_import
+
 import numpy as np
 
 from numpy.testing import assert_equal, assert_raises
@@ -67,6 +69,7 @@ def test_docformat():
 def test_decorator():
     # with unindentation of parameters
     decorator = doccer.filldoc(doc_dict, True)
+
     @decorator
     def func():
         """ Docstring
@@ -76,8 +79,10 @@ def test_decorator():
         Another test
            with some indent
         """
+
     # without unindentation of parameters
     decorator = doccer.filldoc(doc_dict, False)
+
     @decorator
     def func():
         """ Docstring

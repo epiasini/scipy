@@ -1,6 +1,7 @@
 """
 Continuous to discrete transformations for state-space and transfer function.
 """
+from __future__ import division, print_function, absolute_import
 
 # Author: Jeffrey Armstrong <jeff@approximatrix.com>
 # March 29, 2011
@@ -8,33 +9,36 @@ Continuous to discrete transformations for state-space and transfer function.
 import numpy as np
 from scipy import linalg
 
-from ltisys import tf2ss, ss2tf, zpk2ss, ss2zpk
+from .ltisys import tf2ss, ss2tf, zpk2ss, ss2zpk
 
 __all__ = ['cont2discrete']
 
 
 def cont2discrete(sys, dt, method="zoh", alpha=None):
-    """Transform a continuous to a discrete state-space system.
+    """
+    Transform a continuous to a discrete state-space system.
 
     Parameters
-    -----------
+    ----------
     sys : a tuple describing the system.
         The following gives the number of elements in the tuple and
         the interpretation:
-        * 2: (num, den)
-        * 3: (zeros, poles, gain)
-        * 4: (A, B, C, D)
+
+           * 2: (num, den)
+           * 3: (zeros, poles, gain)
+           * 4: (A, B, C, D)
 
     dt : float
         The discretization time step.
     method : {"gbt", "bilinear", "euler", "backward_diff", "zoh"}
         Which method to use:
-            * gbt: generalized bilinear transformation
-            * bilinear: Tustin's approximation ("gbt" with alpha=0.5)
-            * euler: Euler (or forward differencing) method ("gbt" with
-                     alpha=0)
-            * backward_diff: Backwards differencing ("gbt" with alpha=1.0)
-            * zoh: zero-order hold (default).
+
+           * gbt: generalized bilinear transformation
+           * bilinear: Tustin's approximation ("gbt" with alpha=0.5)
+           * euler: Euler (or forward differencing) method ("gbt" with alpha=0)
+           * backward_diff: Backwards differencing ("gbt" with alpha=1.0)
+           * zoh: zero-order hold (default)
+
     alpha : float within [0, 1]
         The generalized bilinear transformation weighting parameter, which
         should only be specified with method="gbt", and is ignored otherwise
@@ -44,9 +48,9 @@ def cont2discrete(sys, dt, method="zoh", alpha=None):
     sysd : tuple containing the discrete system
         Based on the input type, the output will be of the form
 
-        (num, den, dt)   for transfer function input
-        (zeros, poles, gain, dt)   for zeros-poles-gain input
-        (A, B, C, D, dt) for state-space system input
+        * (num, den, dt)   for transfer function input
+        * (zeros, poles, gain, dt)   for zeros-poles-gain input
+        * (A, B, C, D, dt) for state-space system input
 
     Notes
     -----
@@ -55,15 +59,19 @@ def cont2discrete(sys, dt, method="zoh", alpha=None):
     may be used, which includes the common Tustin's bilinear approximation,
     an Euler's method technique, or a backwards differencing technique.
 
-    The Zero-Order Hold (zoh) method is based on:
-    http://en.wikipedia.org/wiki/Discretization#Discretization_of_linear_state_space_models
+    The Zero-Order Hold (zoh) method is based on [1]_, the generalized bilinear
+    approximation is based on [2]_ and [3]_.
 
-    Generalize bilinear approximation is based on:
-    http://techteach.no/publications/discretetime_signals_systems/discrete.pdf
-     and
-    G. Zhang, X. Chen, and T. Chen, Digital redesign via the generalized bilinear
-    transformation, Int. J. Control, vol. 82, no. 4, pp. 741-754, 2009.
-    (http://www.ece.ualberta.ca/~gfzhang/research/ZCC07_preprint.pdf)
+    References
+    ----------
+    .. [1] http://en.wikipedia.org/wiki/Discretization#Discretization_of_linear_state_space_models
+
+    .. [2] http://techteach.no/publications/discretetime_signals_systems/discrete.pdf
+
+    .. [3] G. Zhang, X. Chen, and T. Chen, Digital redesign via the generalized
+        bilinear transformation, Int. J. Control, vol. 82, no. 4, pp. 741-754,
+        2009.
+        (http://www.ece.ualberta.ca/~gfzhang/research/ZCC07_preprint.pdf)
 
     """
     if len(sys) == 2:
@@ -114,7 +122,7 @@ def cont2discrete(sys, dt, method="zoh", alpha=None):
 
         # Need to stack zeros under the a and b matrices
         em_lower = np.hstack((np.zeros((b.shape[1], a.shape[0])),
-                              np.zeros((b.shape[1], b.shape[1])) ))
+                              np.zeros((b.shape[1], b.shape[1]))))
 
         em = np.vstack((em_upper, em_lower))
         ms = linalg.expm(dt * em)
@@ -132,4 +140,3 @@ def cont2discrete(sys, dt, method="zoh", alpha=None):
         raise ValueError("Unknown transformation method '%s'" % method)
 
     return ad, bd, cd, dd, dt
-

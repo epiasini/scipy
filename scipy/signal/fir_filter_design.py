@@ -1,10 +1,11 @@
 """Functions for FIR filter design."""
+from __future__ import division, print_function, absolute_import
 
 from math import ceil, log
 import numpy as np
 from numpy.fft import irfft
 from scipy.special import sinc
-import sigtools
+from . import sigtools
 
 __all__ = ['kaiser_beta', 'kaiser_atten', 'kaiserord',
            'firwin', 'firwin2', 'remez']
@@ -43,7 +44,7 @@ def kaiser_beta(a):
     ----------
     Oppenheim, Schafer, "Discrete-Time Signal Processing", p.475-476.
     """
-    if  a > 50:
+    if a > 50:
         beta = 0.1102 * (a - 8.7)
     elif a > 21:
         beta = 0.5842 * (a - 21) ** 0.4 + 0.07886 * (a - 21)
@@ -82,7 +83,8 @@ def kaiser_atten(numtaps, width):
 
 
 def kaiserord(ripple, width):
-    """Design a Kaiser window to limit ripple and width of transition region.
+    """
+    Design a Kaiser window to limit ripple and width of transition region.
 
     Parameters
     ----------
@@ -97,22 +99,22 @@ def kaiserord(ripple, width):
     -------
     numtaps : int
         The length of the kaiser window.
-    beta :
+    beta : float
         The beta parameter for the kaiser window.
+
+    See Also
+    --------
+    kaiser_beta, kaiser_atten
 
     Notes
     -----
     There are several ways to obtain the Kaiser window:
 
-      signal.kaiser(numtaps, beta, sym=0)
-      signal.get_window(beta, numtaps)
-      signal.get_window(('kaiser', beta), numtaps)
+    - ``signal.kaiser(numtaps, beta, sym=0)``
+    - ``signal.get_window(beta, numtaps)``
+    - ``signal.get_window(('kaiser', beta), numtaps)``
 
     The empirical equations discovered by Kaiser are used.
-
-    See Also
-    --------
-    kaiser_beta, kaiser_atten
 
     References
     ----------
@@ -152,37 +154,33 @@ def firwin(numtaps, cutoff, width=None, window='hamming', pass_zero=True,
         Length of the filter (number of coefficients, i.e. the filter
         order + 1).  `numtaps` must be even if a passband includes the
         Nyquist frequency.
-
     cutoff : float or 1D array_like
         Cutoff frequency of filter (expressed in the same units as `nyq`)
         OR an array of cutoff frequencies (that is, band edges). In the
         latter case, the frequencies in `cutoff` should be positive and
         monotonically increasing between 0 and `nyq`.  The values 0 and
         `nyq` must not be included in `cutoff`.
-
     width : float or None
         If `width` is not None, then assume it is the approximate width
         of the transition region (expressed in the same units as `nyq`)
         for use in Kaiser FIR filter design.  In this case, the `window`
         argument is ignored.
-
     window : string or tuple of string and parameter values
         Desired window to use. See `scipy.signal.get_window` for a list
         of windows and required parameters.
-
     pass_zero : bool
         If True, the gain at the frequency 0 (i.e. the "DC gain") is 1.
         Otherwise the DC gain is 0.
-
     scale : bool
         Set to True to scale the coefficients so that the frequency
         response is exactly unity at a certain frequency.
         That frequency is either:
-            0 (DC) if the first passband starts at 0 (i.e. pass_zero
-                is True);
-            `nyq` (the Nyquist rate) if the first passband ends at
-                `nyq` (i.e the filter is a single band highpass filter);
-            center of first passband otherwise.
+
+        - 0 (DC) if the first passband starts at 0 (i.e. pass_zero
+          is True)
+        - `nyq` (the Nyquist rate) if the first passband ends at
+          `nyq` (i.e the filter is a single band highpass filter);
+          center of first passband otherwise
 
     nyq : float
         Nyquist frequency.  Each frequency in `cutoff` must be between 0
@@ -190,7 +188,7 @@ def firwin(numtaps, cutoff, width=None, window='hamming', pass_zero=True,
 
     Returns
     -------
-    h : 1D ndarray
+    h : (numtaps,) ndarray
         Coefficients of length `numtaps` FIR filter.
 
     Raises
@@ -201,40 +199,40 @@ def firwin(numtaps, cutoff, width=None, window='hamming', pass_zero=True,
         monotonically increasing, or if `numtaps` is even but a passband
         includes the Nyquist frequency.
 
-    Examples
-    --------
-
-    Low-pass from 0 to f::
-
-    >>> firwin(numtaps, f)
-
-    Use a specific window function::
-
-    >>> firwin(numtaps, f, window='nuttall')
-
-    High-pass ('stop' from 0 to f)::
-
-    >>> firwin(numtaps, f, pass_zero=False)
-
-    Band-pass::
-
-    >>> firwin(numtaps, [f1, f2], pass_zero=False)
-
-    Band-stop::
-
-    >>> firwin(numtaps, [f1, f2])
-
-    Multi-band (passbands are [0, f1], [f2, f3] and [f4, 1])::
-
-    >>>firwin(numtaps, [f1, f2, f3, f4])
-
-    Multi-band (passbands are [f1, f2] and [f3,f4])::
-
-    >>> firwin(numtaps, [f1, f2, f3, f4], pass_zero=False)
-
     See also
     --------
     scipy.signal.firwin2
+
+    Examples
+    --------
+    Low-pass from 0 to f::
+
+    >>> from scipy import signal
+    >>> signal.firwin(numtaps, f)
+
+    Use a specific window function::
+
+    >>> signal.firwin(numtaps, f, window='nuttall')
+
+    High-pass ('stop' from 0 to f)::
+
+    >>> signal.firwin(numtaps, f, pass_zero=False)
+
+    Band-pass::
+
+    >>> signal.firwin(numtaps, [f1, f2], pass_zero=False)
+
+    Band-stop::
+
+    >>> signal.firwin(numtaps, [f1, f2])
+
+    Multi-band (passbands are [0, f1], [f2, f3] and [f4, 1])::
+
+    >>> signal.firwin(numtaps, [f1, f2, f3, f4])
+
+    Multi-band (passbands are [f1, f2] and [f3,f4])::
+
+    >>> signal.firwin(numtaps, [f1, f2, f3, f4], pass_zero=False)
 
     """
 
@@ -285,7 +283,7 @@ def firwin(numtaps, cutoff, width=None, window='hamming', pass_zero=True,
         h -= left * sinc(left * m)
 
     # Get and apply the window function.
-    from signaltools import get_window
+    from .signaltools import get_window
     win = get_window(window, numtaps, fftbins=False)
     h *= win
 
@@ -311,7 +309,8 @@ def firwin(numtaps, cutoff, width=None, window='hamming', pass_zero=True,
 # Rewritten by Warren Weckesser, 2010.
 
 def firwin2(numtaps, freq, gain, nfreqs=None, window='hamming', nyq=1.0, antisymmetric=False):
-    """FIR filter design using the window method.
+    """
+    FIR filter design using the window method.
 
     From the given frequencies `freq` and corresponding gains `gain`,
     this function constructs an FIR filter with linear phase and
@@ -322,54 +321,39 @@ def firwin2(numtaps, freq, gain, nfreqs=None, window='hamming', nyq=1.0, antisym
     numtaps : int
         The number of taps in the FIR filter.  `numtaps` must be less than
         `nfreqs`.
-
-    freq : array-like, 1D
+    freq : array_like, 1D
         The frequency sampling points. Typically 0.0 to 1.0 with 1.0 being
         Nyquist.  The Nyquist frequency can be redefined with the argument
         `nyq`.
-
         The values in `freq` must be nondecreasing.  A value can be repeated
         once to implement a discontinuity.  The first value in `freq` must
         be 0, and the last value must be `nyq`.
-
-    gain : array-like
+    gain : array_like
         The filter gains at the frequency sampling points. Certain
         constraints to gain values, depending on the filter type, are applied,
         see Notes for details.
-
     nfreqs : int, optional
         The size of the interpolation mesh used to construct the filter.
         For most efficient behavior, this should be a power of 2 plus 1
         (e.g, 129, 257, etc).  The default is one more than the smallest
         power of 2 that is not less than `numtaps`.  `nfreqs` must be greater
         than `numtaps`.
-
     window : string or (string, float) or float, or None, optional
         Window function to use. Default is "hamming".  See
         `scipy.signal.get_window` for the complete list of possible values.
         If None, no window function is applied.
-
     nyq : float
         Nyquist frequency.  Each frequency in `freq` must be between 0 and
         `nyq` (inclusive).
-
     antisymmetric : bool
-        Flag setting wither resulting impulse responce is symmetric/antisymmetric.
+        Whether resulting impulse response is symmetric/antisymmetric.
         See Notes for more details.
 
     Returns
     -------
-    taps : numpy 1D array of length `numtaps`
-        The filter coefficients of the FIR filter.
-
-    Examples
-    --------
-    A lowpass FIR filter with a response that is 1 on [0.0, 0.5], and
-    that decreases linearly on [0.5, 1.0] from 1 to 0:
-
-    >>> taps = firwin2(150, [0.0, 0.5, 1.0], [1.0, 1.0, 0.0])
-    >>> print(taps[72:78])
-    [-0.02286961 -0.06362756  0.57310236  0.57310236 -0.06362756 -0.02286961]
+    taps : ndarray
+        The filter coefficients of the FIR filter, as a 1-D array of length
+        `numtaps`.
 
     See also
     --------
@@ -377,7 +361,6 @@ def firwin2(numtaps, freq, gain, nfreqs=None, window='hamming', nyq=1.0, antisym
 
     Notes
     -----
-
     From the given set of frequencies and gains, the desired response is
     constructed in the frequency domain.  The inverse FFT is applied to the
     desired response to create the associated convolution kernel, and the
@@ -387,6 +370,7 @@ def firwin2(numtaps, freq, gain, nfreqs=None, window='hamming', nyq=1.0, antisym
     The FIR filter will have linear phase. The type of filter is determined by
     the value of 'numtaps` and `antisymmetric` flag.
     There are four possible combinations:
+
        - odd  `numtaps`, `antisymmetric` is False, type I filter is produced
        - even `numtaps`, `antisymmetric` is False, type II filter is produced
        - odd  `numtaps`, `antisymmetric` is True, type III filter is produced
@@ -394,6 +378,7 @@ def firwin2(numtaps, freq, gain, nfreqs=None, window='hamming', nyq=1.0, antisym
 
     Magnitude response of all but type I filters are subjects to following
     constraints:
+
        - type II  -- zero at the Nyquist frequency
        - type III -- zero at zero and Nyquist frequencies
        - type IV  -- zero at zero frequency
@@ -408,6 +393,16 @@ def firwin2(numtaps, freq, gain, nfreqs=None, window='hamming', nyq=1.0, antisym
 
     .. [2] Smith, Steven W., "The Scientist and Engineer's Guide to Digital
        Signal Processing", Ch. 17. http://www.dspguide.com/ch17/1.htm
+
+    Examples
+    --------
+    A lowpass FIR filter with a response that is 1 on [0.0, 0.5], and
+    that decreases linearly on [0.5, 1.0] from 1 to 0:
+
+    >>> from scipy import signal
+    >>> taps = signal.firwin2(150, [0.0, 0.5, 1.0], [1.0, 1.0, 0.0])
+    >>> print(taps[72:78])
+    [-0.02286961 -0.06362756  0.57310236  0.57310236 -0.06362756 -0.02286961]
 
     """
 
@@ -468,13 +463,12 @@ def firwin2(numtaps, freq, gain, nfreqs=None, window='hamming', nyq=1.0, antisym
 
     fx2 = fx * shift
 
-
     # Use irfft to compute the inverse FFT.
     out_full = irfft(fx2)
 
     if window is not None:
         # Create the window to apply to the filter coefficients.
-        from signaltools import get_window
+        from .signaltools import get_window
         wind = get_window(window, numtaps, fftbins=False)
     else:
         wind = 1
@@ -560,15 +554,15 @@ def remez(numtaps, bands, desired, weight=None, Hz=1, type='bandpass',
     behavior in the frequency ranges between those bands is unspecified and
     may overshoot.
 
-    >>> bpass = sp.signal.remez(72, [0, 0.1, 0.2, 0.4, 0.45, 0.5], [0, 1, 0])
-    >>> freq, response = sp.signal.freqz(bpass)
+    >>> from scipy import signal
+    >>> bpass = signal.remez(72, [0, 0.1, 0.2, 0.4, 0.45, 0.5], [0, 1, 0])
+    >>> freq, response = signal.freqz(bpass)
     >>> ampl = np.abs(response)
 
     >>> import matplotlib.pyplot as plt
     >>> fig = plt.figure()
     >>> ax1 = fig.add_subplot(111)
-    >>> ax1.semilogy(freq/(2*np.pi), ampl, 'b-') # freq in Hz
-    [<matplotlib.lines.Line2D object at 0xf486790>]
+    >>> ax1.semilogy(freq/(2*np.pi), ampl, 'b-')  # freq in Hz
     >>> plt.show()
 
     """

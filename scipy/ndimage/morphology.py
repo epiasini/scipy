@@ -28,10 +28,12 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from __future__ import division, print_function, absolute_import
+
 import numpy
-import _ni_support
-import _nd_image
-import filters
+from . import _ni_support
+from . import _nd_image
+from . import filters
 
 __all__ = ['iterate_structure', 'generate_binary_structure', 'binary_erosion',
            'binary_dilation', 'binary_opening', 'binary_closing',
@@ -48,7 +50,8 @@ def _center_is_true(structure, origin):
                                                  origin)])
     return bool(structure[coor])
 
-def iterate_structure(structure, iterations, origin = None):
+
+def iterate_structure(structure, iterations, origin=None):
     """
     Iterate a structure by dilating it with itself.
 
@@ -71,7 +74,7 @@ def iterate_structure(structure, iterations, origin = None):
     Returns
     -------
 
-    output: ndarray of bools
+    output : ndarray of bools
         A new structuring element obtained by dilating `structure`
         (`iterations` - 1) times with itself.
 
@@ -109,18 +112,19 @@ def iterate_structure(structure, iterations, origin = None):
         return structure.copy()
     ni = iterations - 1
     shape = [ii + ni * (ii - 1) for ii in structure.shape]
-    pos = [ni * (structure.shape[ii] / 2) for ii in range(len(shape))]
+    pos = [ni * (structure.shape[ii] // 2) for ii in range(len(shape))]
     slc = [slice(pos[ii], pos[ii] + structure.shape[ii], None)
            for ii in range(len(shape))]
     out = numpy.zeros(shape, bool)
     out[slc] = structure != 0
-    out = binary_dilation(out, structure, iterations = ni)
+    out = binary_dilation(out, structure, iterations=ni)
     if origin is None:
         return out
     else:
         origin = _ni_support._normalize_sequence(origin, structure.ndim)
         origin = [iterations * o for o in origin]
         return out, origin
+
 
 def generate_binary_structure(rank, connectivity):
     """
@@ -215,12 +219,12 @@ def generate_binary_structure(rank, connectivity):
         connectivity = 1
     if rank < 1:
         if connectivity < 1:
-            return numpy.array(0, dtype = bool)
+            return numpy.array(0, dtype=bool)
         else:
-            return numpy.array(1, dtype = bool)
+            return numpy.array(1, dtype=bool)
     output = numpy.fabs(numpy.indices([3] * rank) - 1)
     output = numpy.add.reduce(output, 0)
-    return numpy.asarray(output <= connectivity, dtype = bool)
+    return numpy.asarray(output <= connectivity, dtype=bool)
 
 
 def _binary_erosion(input, structure, iterations, mask, output,
@@ -251,7 +255,6 @@ def _binary_erosion(input, structure, iterations, mask, output,
     else:
         output = bool
     output, return_value = _ni_support._get_output(output, input)
-
 
     if iterations == 1:
         _nd_image.binary_erosion(input, structure, mask, output,
@@ -297,8 +300,8 @@ def _binary_erosion(input, structure, iterations, mask, output,
             return tmp_out
 
 
-def binary_erosion(input, structure = None, iterations = 1, mask = None,
-        output = None, border_value = 0, origin = 0, brute_force = False):
+def binary_erosion(input, structure=None, iterations=1, mask=None,
+        output=None, border_value=0, origin=0, brute_force=False):
     """
     Multi-dimensional binary erosion with a given structuring element.
 
@@ -330,17 +333,17 @@ def binary_erosion(input, structure = None, iterations = 1, mask = None,
         Array of the same shape as input, into which the output is placed.
         By default, a new array is created.
 
-    origin: int or tuple of ints, optional
+    origin : int or tuple of ints, optional
         Placement of the filter, by default 0.
 
-    border_value: int (cast to 0 or 1)
+    border_value : int (cast to 0 or 1)
         Value at the border in the output array.
 
 
     Returns
     -------
 
-    out: ndarray of bools
+    out : ndarray of bools
         Erosion of the input by the structuring element.
 
 
@@ -401,8 +404,9 @@ def binary_erosion(input, structure = None, iterations = 1, mask = None,
     return _binary_erosion(input, structure, iterations, mask,
                            output, border_value, origin, 0, brute_force)
 
-def binary_dilation(input, structure = None, iterations = 1, mask = None,
-        output = None, border_value = 0, origin = 0, brute_force = False):
+
+def binary_dilation(input, structure=None, iterations=1, mask=None,
+        output=None, border_value=0, origin=0, brute_force=False):
     """
     Multi-dimensional binary dilation with the given structuring element.
 
@@ -540,8 +544,8 @@ def binary_dilation(input, structure = None, iterations = 1, mask = None,
                            output, border_value, origin, 1, brute_force)
 
 
-def binary_opening(input, structure = None, iterations = 1, output = None,
-                   origin = 0):
+def binary_opening(input, structure=None, iterations=1, output=None,
+                   origin=0):
     """
     Multi-dimensional binary opening with the given structuring element.
 
@@ -656,8 +660,8 @@ def binary_opening(input, structure = None, iterations = 1, output = None,
                            origin)
 
 
-def binary_closing(input, structure = None, iterations = 1, output = None,
-                   origin = 0):
+def binary_closing(input, structure=None, iterations=1, output=None,
+                   origin=0):
     """
     Multi-dimensional binary closing with the given structuring element.
 
@@ -795,8 +799,8 @@ def binary_closing(input, structure = None, iterations = 1, output = None,
                           origin)
 
 
-def binary_hit_or_miss(input, structure1 = None, structure2 = None,
-                       output = None, origin1 = 0, origin2 = None):
+def binary_hit_or_miss(input, structure1=None, structure2=None,
+                       output=None, origin1=0, origin2=None):
     """
     Multi-dimensional binary hit-or-miss transform.
 
@@ -919,8 +923,9 @@ def binary_hit_or_miss(input, structure1 = None, structure2 = None,
         numpy.logical_not(result, result)
         return numpy.logical_and(tmp1, result)
 
-def binary_propagation(input, structure = None, mask = None,
-                       output = None, border_value = 0, origin = 0):
+
+def binary_propagation(input, structure=None, mask=None,
+                       output=None, border_value=0, origin=0):
     """
     Multi-dimensional binary propagation with the given structuring element.
 
@@ -1055,7 +1060,8 @@ def binary_propagation(input, structure = None, mask = None,
     return binary_dilation(input, structure, -1, mask, output,
                            border_value, origin)
 
-def binary_fill_holes(input, structure = None, output = None, origin = 0):
+
+def binary_fill_holes(input, structure=None, output=None, origin=0):
     """
     Fill the holes in binary objects.
 
@@ -1063,27 +1069,27 @@ def binary_fill_holes(input, structure = None, output = None, origin = 0):
     Parameters
     ----------
 
-    input: array_like
+    input : array_like
         n-dimensional binary array with holes to be filled
 
-    structure: array_like, optional
+    structure : array_like, optional
         Structuring element used in the computation; large-size elements
         make computations faster but may miss holes separated from the
         background by thin regions. The default element (with a square
         connectivity equal to one) yields the intuitive result where all
         holes in the input have been filled.
 
-    output: ndarray, optional
+    output : ndarray, optional
         Array of the same shape as input, into which the output is placed.
         By default, a new array is created.
 
-    origin: int, tuple of ints, optional
+    origin : int, tuple of ints, optional
         Position of the structuring element.
 
     Returns
     -------
 
-    out: ndarray
+    out : ndarray
         Transformation of the initial image `input` where holes have been
         filled.
 
@@ -1146,8 +1152,9 @@ def binary_fill_holes(input, structure = None, output = None, origin = 0):
         numpy.logical_not(output, output)
         return output
 
-def grey_erosion(input,  size = None, footprint = None, structure = None,
-                 output = None, mode = "reflect", cval = 0.0, origin = 0):
+
+def grey_erosion(input, size=None, footprint=None, structure=None,
+                 output=None, mode="reflect", cval=0.0, origin=0):
     """
     Calculate a greyscale erosion, using either a structuring element,
     or a footprint corresponding to a flat structuring element.
@@ -1163,8 +1170,8 @@ def grey_erosion(input,  size = None, footprint = None, structure = None,
         Array over which the grayscale erosion is to be computed.
 
     size : tuple of ints
-        Shape of a flat and full structuring element used for the
-        grayscale erosion. Optional if `footprint` is provided.
+        Shape of a flat and full structuring element used for the grayscale
+        erosion. Optional if `footprint` or `structure` is provided.
 
     footprint : array of ints, optional
         Positions of non-infinite elements of a flat structuring element
@@ -1266,12 +1273,14 @@ def grey_erosion(input,  size = None, footprint = None, structure = None,
            [0, 0, 0, 0, 0, 0, 0]])
 
     """
+    if size is None and footprint is None and structure is None:
+        raise ValueError("size, footprint or structure must be specified")
     return filters._min_or_max_filter(input, size, footprint, structure,
                                       output, mode, cval, origin, 1)
 
 
-def grey_dilation(input,  size = None, footprint = None, structure = None,
-                 output = None, mode = "reflect", cval = 0.0, origin = 0):
+def grey_dilation(input, size=None, footprint=None, structure=None,
+                 output=None, mode="reflect", cval=0.0, origin=0):
     """
     Calculate a greyscale dilation, using either a structuring element,
     or a footprint corresponding to a flat structuring element.
@@ -1287,8 +1296,8 @@ def grey_dilation(input,  size = None, footprint = None, structure = None,
         Array over which the grayscale dilation is to be computed.
 
     size : tuple of ints
-        Shape of a flat and full structuring element used for the
-        grayscale dilation. Optional if `footprint` is provided.
+        Shape of a flat and full structuring element used for the grayscale
+        dilation. Optional if `footprint` or `structure` is provided.
 
     footprint : array of ints, optional
         Positions of non-infinite elements of a flat structuring element
@@ -1406,6 +1415,8 @@ def grey_dilation(input,  size = None, footprint = None, structure = None,
            [1, 1, 1, 1, 1, 1, 1]])
 
     """
+    if size is None and footprint is None and structure is None:
+        raise ValueError("size, footprint or structure must be specified")
     if structure is not None:
         structure = numpy.asarray(structure)
         structure = structure[tuple([slice(None, None, -1)] *
@@ -1420,6 +1431,10 @@ def grey_dilation(input,  size = None, footprint = None, structure = None,
         origin[ii] = -origin[ii]
         if footprint is not None:
             sz = footprint.shape[ii]
+        elif structure is not None:
+            sz = structure.shape[ii]
+        elif numpy.isscalar(size):
+            sz = size
         else:
             sz = size[ii]
         if not sz & 1:
@@ -1428,8 +1443,8 @@ def grey_dilation(input,  size = None, footprint = None, structure = None,
                                       output, mode, cval, origin, 0)
 
 
-def grey_opening(input, size = None, footprint = None, structure = None,
-                 output = None, mode = "reflect", cval = 0.0, origin = 0):
+def grey_opening(input, size=None, footprint=None, structure=None,
+                 output=None, mode="reflect", cval=0.0, origin=0):
     """
     Multi-dimensional greyscale opening.
 
@@ -1443,8 +1458,8 @@ def grey_opening(input, size = None, footprint = None, structure = None,
         Array over which the grayscale opening is to be computed.
 
     size : tuple of ints
-        Shape of a flat and full structuring element used for the
-        grayscale opening. Optional if `footprint` is provided.
+        Shape of a flat and full structuring element used for the grayscale
+        opening. Optional if `footprint` or `structure` is provided.
 
     footprint : array of ints, optional
         Positions of non-infinite elements of a flat structuring element
@@ -1523,8 +1538,8 @@ def grey_opening(input, size = None, footprint = None, structure = None,
                          cval, origin)
 
 
-def grey_closing(input, size = None, footprint = None, structure = None,
-                 output = None, mode = "reflect", cval = 0.0, origin = 0):
+def grey_closing(input, size=None, footprint=None, structure=None,
+                 output=None, mode="reflect", cval=0.0, origin=0):
     """
     Multi-dimensional greyscale closing.
 
@@ -1538,8 +1553,8 @@ def grey_closing(input, size = None, footprint = None, structure = None,
         Array over which the grayscale closing is to be computed.
 
     size : tuple of ints
-        Shape of a flat and full structuring element used for the
-        grayscale closing. Optional if `footprint` is provided.
+        Shape of a flat and full structuring element used for the grayscale
+        closing. Optional if `footprint` or `structure` is provided.
 
     footprint : array of ints, optional
         Positions of non-infinite elements of a flat structuring element
@@ -1618,9 +1633,9 @@ def grey_closing(input, size = None, footprint = None, structure = None,
                         cval, origin)
 
 
-def morphological_gradient(input, size = None, footprint = None,
-                        structure = None, output = None, mode = "reflect",
-                        cval = 0.0, origin = 0):
+def morphological_gradient(input, size=None, footprint=None,
+                        structure=None, output=None, mode="reflect",
+                        cval=0.0, origin=0):
     """
     Multi-dimensional morphological gradient.
 
@@ -1635,9 +1650,9 @@ def morphological_gradient(input, size = None, footprint = None,
         Array over which to compute the morphlogical gradient.
 
     size : tuple of ints
-        Shape of a flat and full structuring element used for the
-        mathematical morphology operations. Optional if `footprint`
-        is provided. A larger `size` yields a more blurred gradient.
+        Shape of a flat and full structuring element used for the mathematical
+        morphology operations. Optional if `footprint` or `structure` is
+        provided. A larger `size` yields a more blurred gradient.
 
     footprint : array of ints, optional
         Positions of non-infinite elements of a flat structuring element
@@ -1747,9 +1762,9 @@ def morphological_gradient(input, size = None, footprint = None,
                                    None, mode, cval, origin))
 
 
-def morphological_laplace(input, size = None, footprint = None,
-                          structure = None, output = None,
-                          mode = "reflect", cval = 0.0, origin = 0):
+def morphological_laplace(input, size=None, footprint=None,
+                          structure=None, output=None,
+                          mode="reflect", cval=0.0, origin=0):
     """Multi-dimensional morphological laplace.
 
     Either a size or a footprint, or the structure must be provided. An
@@ -1777,8 +1792,8 @@ def morphological_laplace(input, size = None, footprint = None,
         return tmp2
 
 
-def white_tophat(input, size = None, footprint = None, structure = None,
-                 output = None, mode = "reflect", cval = 0.0, origin = 0):
+def white_tophat(input, size=None, footprint=None, structure=None,
+                 output=None, mode="reflect", cval=0.0, origin=0):
     """Multi-dimensional white tophat filter.
 
     Either a size or a footprint, or the structure must be provided. An
@@ -1800,9 +1815,9 @@ def white_tophat(input, size = None, footprint = None, structure = None,
         return input - tmp
 
 
-def black_tophat(input, size = None, footprint = None,
-                 structure = None, output = None, mode = "reflect",
-                 cval = 0.0, origin = 0):
+def black_tophat(input, size=None, footprint=None,
+                 structure=None, output=None, mode="reflect",
+                 cval=0.0, origin=0):
     """
     Multi-dimensional black tophat filter.
 
@@ -1837,9 +1852,9 @@ def black_tophat(input, size = None, footprint = None,
         return tmp - input
 
 
-def distance_transform_bf(input, metric = "euclidean", sampling = None,
-                          return_distances = True, return_indices = False,
-                          distances = None, indices = None):
+def distance_transform_bf(input, metric="euclidean", sampling=None,
+                          return_distances=True, return_indices=False,
+                          distances=None, indices=None):
     """Distance transform function by a brute force algorithm.
 
     This function calculates the distance transform of the input, by
@@ -1890,19 +1905,19 @@ def distance_transform_bf(input, metric = "euclidean", sampling = None,
         raise RuntimeError('distance metric not supported')
     if sampling is not None:
         sampling = _ni_support._normalize_sequence(sampling, tmp1.ndim)
-        sampling = numpy.asarray(sampling, dtype = numpy.float64)
+        sampling = numpy.asarray(sampling, dtype=numpy.float64)
         if not sampling.flags.contiguous:
             sampling = sampling.copy()
     if return_indices:
-        ft = numpy.zeros(tmp1.shape, dtype = numpy.int32)
+        ft = numpy.zeros(tmp1.shape, dtype=numpy.int32)
     else:
         ft = None
     if return_distances:
         if distances is None:
             if metric == 1:
-                dt = numpy.zeros(tmp1.shape, dtype = numpy.float64)
+                dt = numpy.zeros(tmp1.shape, dtype=numpy.float64)
             else:
-                dt = numpy.zeros(tmp1.shape, dtype = numpy.uint32)
+                dt = numpy.zeros(tmp1.shape, dtype=numpy.uint32)
         else:
             if distances.shape != tmp1.shape:
                 raise RuntimeError('distances array has wrong shape')
@@ -1924,7 +1939,7 @@ def distance_transform_bf(input, metric = "euclidean", sampling = None,
                 raise RuntimeError('indices has wrong shape')
             tmp2 = indices
         else:
-            tmp2 = numpy.indices(tmp1.shape, dtype = numpy.int32)
+            tmp2 = numpy.indices(tmp1.shape, dtype=numpy.int32)
         ft = numpy.ravel(ft)
         for ii in range(tmp2.shape[0]):
             rtmp = numpy.ravel(tmp2[ii, ...])[ft]
@@ -1944,9 +1959,10 @@ def distance_transform_bf(input, metric = "euclidean", sampling = None,
     else:
         return None
 
-def distance_transform_cdt(input, metric = 'chessboard',
-                        return_distances = True, return_indices = False,
-                        distances = None, indices = None):
+
+def distance_transform_cdt(input, metric='chessboard',
+                        return_distances=True, return_indices=False,
+                        distances=None, indices=None):
     """Distance transform for chamfer type of transforms.
 
     The metric determines the type of chamfering that is done. If
@@ -2003,7 +2019,7 @@ def distance_transform_cdt(input, metric = 'chessboard',
     rank = dt.ndim
     if return_indices:
         sz = numpy.product(dt.shape,axis=0)
-        ft = numpy.arange(sz, dtype = numpy.int32)
+        ft = numpy.arange(sz, dtype=numpy.int32)
         ft.shape = dt.shape
     else:
         ft = None
@@ -2023,7 +2039,7 @@ def distance_transform_cdt(input, metric = 'chessboard',
                 raise RuntimeError('indices has wrong shape')
             tmp = indices
         else:
-            tmp = numpy.indices(dt.shape, dtype = numpy.int32)
+            tmp = numpy.indices(dt.shape, dtype=numpy.int32)
         for ii in range(tmp.shape[0]):
             rtmp = numpy.ravel(tmp[ii, ...])[ft]
             rtmp.shape = dt.shape
@@ -2044,9 +2060,9 @@ def distance_transform_cdt(input, metric = 'chessboard',
         return None
 
 
-def distance_transform_edt(input, sampling = None,
-                        return_distances = True, return_indices = False,
-                        distances = None, indices = None):
+def distance_transform_edt(input, sampling=None,
+                        return_distances=True, return_indices=False,
+                        distances=None, indices=None):
     """
     Exact euclidean distance transform.
 
@@ -2160,10 +2176,10 @@ def distance_transform_edt(input, sampling = None,
     ft_inplace = isinstance(indices, numpy.ndarray)
     dt_inplace = isinstance(distances, numpy.ndarray)
     # calculate the feature transform
-    input = numpy.where(input, 1, 0).astype(numpy.int8)
+    input = numpy.atleast_1d(numpy.where(input, 1, 0).astype(numpy.int8))
     if sampling is not None:
         sampling = _ni_support._normalize_sequence(sampling, input.ndim)
-        sampling = numpy.asarray(sampling, dtype = numpy.float64)
+        sampling = numpy.asarray(sampling, dtype=numpy.float64)
         if not sampling.flags.contiguous:
             sampling = sampling.copy()
     if ft_inplace:
@@ -2174,18 +2190,18 @@ def distance_transform_edt(input, sampling = None,
             raise RuntimeError('indices must be of int32 type')
     else:
         ft = numpy.zeros((input.ndim,) + input.shape,
-                            dtype = numpy.int32)
+                            dtype=numpy.int32)
     _nd_image.euclidean_feature_transform(input, sampling, ft)
     # if requested, calculate the distance transform
     if return_distances:
-        dt = ft - numpy.indices(input.shape, dtype = ft.dtype)
+        dt = ft - numpy.indices(input.shape, dtype=ft.dtype)
         dt = dt.astype(numpy.float64)
         if sampling is not None:
             for ii in range(len(sampling)):
                 dt[ii, ...] *= sampling[ii]
         numpy.multiply(dt, dt, dt)
         if dt_inplace:
-            dt = numpy.add.reduce(dt, axis = 0)
+            dt = numpy.add.reduce(dt, axis=0)
             if distances.shape != dt.shape:
                 raise RuntimeError('indices has wrong shape')
             if distances.dtype.type != numpy.float64:
@@ -2193,7 +2209,7 @@ def distance_transform_edt(input, sampling = None,
             numpy.sqrt(dt, distances)
             del dt
         else:
-            dt = numpy.add.reduce(dt, axis = 0)
+            dt = numpy.add.reduce(dt, axis=0)
             dt = numpy.sqrt(dt)
     # construct and return the result
     result = []

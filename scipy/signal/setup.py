@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import division, print_function, absolute_import
 
 
 def configuration(parent_package='', top_path=None):
@@ -14,9 +15,9 @@ def configuration(parent_package='', top_path=None):
                                   'correlate_nd.c.src'],
                          depends=['sigtools.h'],
                          include_dirs=['.']
-    )
+                         )
 
-    config.add_extension('spectral', sources=['spectral.c'])
+    config.add_extension('_spectral', sources=['_spectral.c'])
 
     config.add_extension('spline',
         sources=['splinemodule.c', 'S_bspline_util.c', 'D_bspline_util.c',

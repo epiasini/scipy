@@ -13,6 +13,12 @@ C
 C      Changed GAMMA to GAMMA2 and PSI to PSI_SPEC to avoid potential conflicts.
 C
 
+        FUNCTION DNAN()
+        DOUBLE PRECISION DNAN
+        DNAN = 0.0D0
+        DNAN = 0.0D0/DNAN
+        END
+
         SUBROUTINE CPDSA(N,Z,CDN)
 C
 C       ===========================================================
@@ -266,7 +272,7 @@ C
         ZS=LS*(1.0D0-Z*Z)
         DO 25 I=1,M
 25         CPM(I,I)=-LS*(2.0D0*I-1.0D0)*ZQ*CPM(I-1,I-1)
-        DO 30 I=0,M
+        DO 30 I=0,MIN(M,N-1)
 30         CPM(I,I+1)=(2.0D0*I+1.0D0)*Z*CPM(I,I)
         DO 35 I=0,M
         DO 35 J=I+2,N
@@ -1611,7 +1617,8 @@ C
         IMPLICIT DOUBLE PRECISION (A-H,O-Z)
         IF (M.LE.12.OR.Q.LE.3.0*M.OR.Q.GT.M*M) THEN
             CALL CV0(KD,M,Q,A)
-            IF (Q.NE.0.0D0) CALL REFINE(KD,M,Q,A)
+            IF (Q.NE.0.0D0.AND.M.NE.2) CALL REFINE(KD,M,Q,A)
+            IF (Q.GT.2.0D-3.AND.M.EQ.2) CALL REFINE(KD,M,Q,A)
         ELSE
            NDIV=10
            DELTA=(M-3.0)*M/NDIV
@@ -5183,7 +5190,7 @@ C
         IF (M.LE.2) THEN
            T2=0.0D0
            IF (KD.EQ.1.AND.M.EQ.0) T1=T1+T1
-           IF (KD.EQ.1.AND.M.EQ.2) T1=-2.0*Q*Q/(4.0-B+T1)-4.0
+           IF (KD.EQ.1.AND.M.EQ.2) T1=-2.0D0*Q*Q/(4.0D0-B+T1)-4.0D0
            IF (KD.EQ.2.AND.M.EQ.1) T1=T1+Q
            IF (KD.EQ.3.AND.M.EQ.1) T1=T1-Q
         ELSE
@@ -5571,9 +5578,20 @@ C       Output:  EI --- Ei(x)
 C       ============================================
 C
         IMPLICIT NONE
-        DOUBLE COMPLEX Z, CEI
+        DOUBLE COMPLEX Z, CEI, IMF
+        DOUBLE PRECISION PI
+        PI=3.141592653589793D0
         CALL E1Z(-Z, CEI)
-        CEI = -CEI + (CDLOG(Z) - CDLOG(1D0/Z))/2D0 - CDLOG(-Z)
+        CEI = -CEI
+        IF (DIMAG(Z).GT.0) THEN
+           CEI = CEI + (0d0,1d0)*PI
+        ELSE IF (DIMAG(Z).LT.0) THEN
+           CEI = CEI - (0d0,1d0)*PI
+        ELSE IF (DIMAG(Z).EQ.0) THEN
+           IF (DBLE(Z).GT.0) THEN
+              CEI = CEI - (0d0,1d0)*PI
+           ENDIF
+        ENDIF
         RETURN
         END
 
@@ -7024,6 +7042,11 @@ C
            QM=17.0+3.1*SQRT(Q)-.126*Q+.0037*SQRT(Q)*Q
         ENDIF
         KM=INT(QM+0.5*M)
+        IF(KM.GT.251) THEN
+           CSF=DNAN()
+           CSD=DNAN()
+           RETURN
+        END IF
         CALL FCOEF(KD,M,Q,A,FG)
         IC=INT(M/2)+1
         RD=1.74532925199433D-2
@@ -8629,23 +8652,59 @@ C
         DIMENSION FC(251)
         DO 5 I=1,251
 5          FC(I)=0.0D0
-        IF (Q.LE.1.0D0) THEN
+        IF (DABS(Q).LE.1.0D-7) THEN
+C          Expansion up to order Q^1 (Abramowitz & Stegun 20.2.27-28)
+           IF (KD.EQ.1) THEN
+              JM=M/2 + 1
+           ELSE IF (KD.EQ.2.OR.KD.EQ.3) THEN
+              JM=(M-1)/2+1
+           ELSE IF (KD.EQ.4) THEN
+              JM=M/2
+           END IF
+C          Check for overflow
+           IF (JM+1.GT.251) GOTO 6
+C          Proceed using the simplest expansion
+           IF (KD.EQ.1.OR.KD.EQ.2) THEN
+              IF (M.EQ.0) THEN
+                 FC(1) = 1/SQRT(2.0D0)
+                 FC(2) = -Q/2.0D0/SQRT(2.0D0)
+              ELSE IF (M.EQ.1) THEN
+                 FC(1) = 1.0D0
+                 FC(2) = -Q/8.0D0
+              ELSE IF (M.EQ.2) THEN
+                 FC(1) = Q/4.0D0
+                 FC(2) = 1.0D0
+                 FC(3) = -Q/12.0D0
+              ELSE
+                 FC(JM) = 1.0D0
+                 FC(JM+1) = -Q/(4.0D0 * (M + 1))
+                 FC(JM-1) =  Q/(4.0D0 * (M - 1))
+              END IF
+           ELSE IF (KD.EQ.3.OR.KD.EQ.4) THEN
+              IF (M.EQ.1) THEN
+                 FC(1) = 1.0D0
+                 FC(2) = -Q/8.0D0
+              ELSE IF (M.EQ.2) THEN
+                 FC(1) = 1.0D0
+                 FC(2) = -Q/12.0D0
+              ELSE
+                 FC(JM) = 1.0D0
+                 FC(JM+1) = -Q/(4.0D0 * (M + 1))
+                 FC(JM-1) =  Q/(4.0D0 * (M - 1))
+              END IF
+           ENDIF
+           RETURN
+        ELSE IF (Q.LE.1.0D0) THEN
            QM=7.5+56.1*SQRT(Q)-134.7*Q+90.7*SQRT(Q)*Q
         ELSE
            QM=17.0+3.1*SQRT(Q)-.126*Q+.0037*SQRT(Q)*Q
         ENDIF
         KM=INT(QM+0.5*M)
-        IF (Q.EQ.0.0D0) THEN
-           DO 10 K=1,KM
-10            FC(K)=0.0D0
-           IF (KD.EQ.1) THEN
-              FC((M+2)/2)=1.0D0
-              IF (M.EQ.0) FC(1)=1.0D0/DSQRT(2.0D0)
-           ELSE IF (KD.EQ.4) THEN
-              FC(M/2)=1.0D0
-           ELSE
-              FC((M+1)/2)=1.0D0
-           ENDIF
+        IF (KM.GT.251) THEN
+C          Overflow, generate NaNs
+ 6         FNAN=DNAN()
+           DO 7 I=1,251
+ 7            FC(I)=FNAN
            RETURN
         ENDIF
         KB=0
@@ -9123,24 +9182,49 @@ C
         EL=0.5772156649015328D0
         X=DBLE(Z)
         A0=CDABS(Z)
+C       Continued fraction converges slowly near negative real axis,
+C       so use power series in a wedge around it until radius 40.0
+        XT=-2*DABS(DIMAG(Z))
         IF (A0.EQ.0.0D0) THEN
            CE1=(1.0D+300,0.0D0)
-        ELSE IF (A0.LE.10.0.OR.X.LT.0.0.AND.A0.LT.20.0) THEN
+        ELSE IF (A0.LE.5.0.OR.X.LT.XT.AND.A0.LT.40.0) THEN
+C          Power series
            CE1=(1.0D0,0.0D0)
            CR=(1.0D0,0.0D0)
-           DO 10 K=1,150
+           DO 10 K=1,500
               CR=-CR*K*Z/(K+1.0D0)**2
               CE1=CE1+CR
               IF (CDABS(CR).LE.CDABS(CE1)*1.0D-15) GO TO 15
 10         CONTINUE
-15         CE1=-EL-CDLOG(Z)+Z*CE1
+15         CONTINUE
+           IF (X.LE.0.0.AND.DIMAG(Z).EQ.0.0) THEN
+C             Careful on the branch cut -- avoid signed zeros
+              CE1=-EL-CDLOG(-Z)+Z*CE1-PI*(0.0D0,1.0D0)
+           ELSE
+              CE1=-EL-CDLOG(Z)+Z*CE1
+           ENDIF
         ELSE
-           CT0=(0.0D0,0.0D0)
-           DO 20 K=120,1,-1
-              CT0=K/(1.0D0+K/(Z+CT0))
+C          Continued fraction http://dlmf.nist.gov/6.9
+C
+C                           1     1     1     2     2     3     3
+C          E1 = exp(-z) * ----- ----- ----- ----- ----- ----- ----- ...
+C                         Z +   1 +   Z +   1 +   Z +   1 +   Z +
+           ZC=0D0
+           ZD=1/Z
+           ZDC=1*ZD
+           ZC=ZC + ZDC
+           DO 20 K=1,500
+              ZD=1/(ZD*K + 1)
+              ZDC=(1*ZD - 1)*ZDC
+              ZC=ZC + ZDC
+
+              ZD=1/(ZD*K + Z)
+              ZDC=(Z*ZD - 1)*ZDC
+              ZC=ZC + ZDC
+
+              IF (CDABS(ZDC).LE.CDABS(ZC)*1.0D-15.AND.K.GT.20) GO TO 25
 20         CONTINUE
-           CT=1.0D0/(Z+CT0)
-           CE1=CDEXP(-Z)*CT
+25         CE1=CDEXP(-Z)*ZC
            IF (X.LE.0.0.AND.DIMAG(Z).EQ.0.0) CE1=CE1-PI*(0.0D0,1.0D0)
         ENDIF
         RETURN
@@ -12443,6 +12527,13 @@ C
            QM=17.0+3.1*SQRT(Q)-.126*Q+.0037*SQRT(Q)*Q
         ENDIF
         KM=INT(QM+0.5*M)
+        IF(KM.GE.251) THEN
+           F1R=DNAN()
+           D1R=DNAN()
+           F2R=DNAN()
+           D2R=DNAN()
+           RETURN
+        END IF
         CALL FCOEF(KD,M,Q,A,FG)
         IC=INT(M/2)+1
         IF (KD.EQ.4) IC=M/2
@@ -12450,8 +12541,8 @@ C
         C2=DEXP(X)
         U1=DSQRT(Q)*C1
         U2=DSQRT(Q)*C2
-        CALL JYNB(KM,U1,NM,BJ1,DJ1,BY1,DY1)
-        CALL JYNB(KM,U2,NM,BJ2,DJ2,BY2,DY2)
+        CALL JYNB(KM+1,U1,NM,BJ1,DJ1,BY1,DY1)
+        CALL JYNB(KM+1,U2,NM,BJ2,DJ2,BY2,DY2)
         W1=0.0D0
         W2=0.0D0
         IF (KC.EQ.2) GO TO 50

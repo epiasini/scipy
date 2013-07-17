@@ -2,11 +2,10 @@
   >-------------------------------</a><a name="TOP">-</a>
 
    userprintf.c
-   qh_fprintf() and qh_fprintf_rbox()
+   qh_fprintf()
 
    see README.txt  see COPYING.txt for copyright information.
 
-   If you redefine one of these functions you must redefine all of them.
    If you recompile and load this file, then userprintf.o will not be loaded
    from qhull.a or qhull.lib
 
@@ -36,7 +35,6 @@
      same as fprintf()
      fgets() is not trapped like fprintf()
      exit qh_fprintf via qh_errexit()
-     exit qh_fprintf_rbox via qh_errexit_rbox()
 */
 
 void qh_fprintf(FILE *fp, int msgcode, const char *fmt, ... ) {
@@ -62,18 +60,4 @@ void qh_fprintf(FILE *fp, int msgcode, const char *fmt, ... ) {
     /* Place debugging traps here. Use with option 'Tn' */
 
 } /* qh_fprintf */
-
-void qh_fprintf_rbox(FILE *fp, int msgcode, const char *fmt, ... ) {
-    va_list args;
-
-    if (!fp) {
-        fprintf(stderr, "QH6231 Qhull internal error (userprintf.c): fp is 0.  Wrong qh_fprintf_rbox called.\n");
-        qh_errexit_rbox(6231);
-    }
-    if (msgcode >= MSG_ERROR && msgcode < MSG_STDERR)
-      fprintf(fp, "QH%.4d ", msgcode);
-    va_start(args, fmt);
-    vfprintf(fp, fmt, args);
-    va_end(args);
-} /* qh_fprintf_rbox */
 

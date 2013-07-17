@@ -3,8 +3,11 @@
 
 # Author: Warren Weckesser, Enthought, Inc.
 
+from __future__ import division, print_function, absolute_import
+
 import numpy as np
 from scipy import special
+from functools import reduce
 
 
 __all__ = ['margins', 'expected_freq', 'chi2_contingency']
@@ -52,7 +55,7 @@ def margins(a):
     array([[[60, 66, 72, 78]]])
     """
     margsums = []
-    ranged = range(a.ndim)
+    ranged = list(range(a.ndim))
     for k in ranged:
         marg = np.apply_over_axes(np.sum, a, [j for j in ranged if j != k])
         margsums.append(marg)
@@ -60,7 +63,8 @@ def margins(a):
 
 
 def expected_freq(observed):
-    """Compute the expected frequencies from a contingency table.
+    """
+    Compute the expected frequencies from a contingency table.
 
     Given an n-dimensional contingency table of observed frequencies,
     compute the expected frequencies for the table based on the marginal
@@ -76,8 +80,9 @@ def expected_freq(observed):
 
     Returns
     -------
-    expected : ndarray of type numpy.float64, same shape as `observed`.
+    expected : ndarray of float64
         The expected frequencies, based on the marginal sums of the table.
+        Same shape as `observed`.
 
     Examples
     --------
@@ -85,6 +90,7 @@ def expected_freq(observed):
     >>> expected_freq(observed)
     array([[ 12.,  12.,  16.],
            [ 18.,  18.,  24.]])
+
     """
     # Typically `observed` is an integer array. If `observed` has a large
     # number of dimensions or holds large values, some of the following
@@ -108,9 +114,9 @@ def chi2_contingency(observed, correction=True):
     This function computes the chi-square statistic and p-value for the
     hypothesis test of independence of the observed frequencies in the
     contingency table [1]_ `observed`.  The expected frequencies are computed
-    based on the marginal sums under the assumption of independence;
-    see scipy.stats.expected_freq.  The number of degrees of freedom is
-    (expressed using numpy functions and attributes)::
+    based on the marginal sums under the assumption of independence; see
+    `scipy.stats.contingency.expected_freq`.  The number of degrees of
+    freedom is (expressed using numpy functions and attributes)::
 
         dof = observed.size - sum(observed.shape) + observed.ndim - 1
 

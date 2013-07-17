@@ -1,5 +1,7 @@
 # This script is used to parse BOOST special function test data into something
 # we can easily import in numpy. It is ugly as hell, but it works.
+from __future__ import division, print_function, absolute_import
+
 import re
 import os
 
@@ -121,6 +123,7 @@ DATA_FILES = [
     'zeta_neg_data.ipp',
 ]
 
+
 def _raw_data(line):
     items = line.split(',')
     l = []
@@ -129,6 +132,7 @@ def _raw_data(line):
         if m:
             l.append(m.group(1))
     return l
+
 
 def parse_ipp_file(filename):
     a = open(filename, 'r')
@@ -164,6 +168,7 @@ def parse_ipp_file(filename):
 
     return data
 
+
 def dump_dataset(filename, data):
     fid = open(filename, 'w')
     try:
@@ -171,6 +176,7 @@ def dump_dataset(filename, data):
             fid.write("%s\n" % ",".join(line))
     finally:
         fid.close()
+
 
 def dump_datasets(filename):
     base, ext = os.path.splitext(os.path.basename(filename))
@@ -185,5 +191,5 @@ def dump_datasets(filename):
 if __name__ == '__main__':
     for filename in DATA_FILES:
         filename = os.path.join(BOOST_SRC, filename)
-        print "================= %s ===============" % filename
+        print("================= %s ===============" % filename)
         dump_datasets(filename)

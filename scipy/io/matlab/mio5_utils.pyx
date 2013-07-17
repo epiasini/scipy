@@ -123,7 +123,7 @@ cdef class VarHeader5:
     cdef cnp.int32_t dims_ptr[_MAT_MAXDIMS]
     cdef int n_dims
     cdef int is_complex
-    cdef int is_logical
+    cdef readonly int is_logical
     cdef public int is_global
     cdef size_t nzmax
 
@@ -149,7 +149,6 @@ cdef class VarReader5:
     # pointers to stuff in preader.class_dtypes
     cdef PyObject* class_dtypes[_N_MXS]
     # cached here for convenience in later array creation
-    cdef cnp.dtype U1_dtype
     cdef cnp.dtype bool_dtype
     # element processing options
     cdef:
@@ -203,12 +202,7 @@ cdef class VarReader5:
             if isinstance(key, str):
                 continue
             self.class_dtypes[key] = <PyObject*>dt
-        # cache correctly byte ordered dtypes
-        if self.little_endian:
-            self.U1_dtype = np.dtype('<U1')
-        else:
-            self.U1_dtype = np.dtype('>U1')
-        bool_dtype = np.dtype('bool')
+        self.bool_dtype = np.dtype('bool')
         
     def set_stream(self, fobj):
         ''' Set stream of best type from file-like `fobj`
@@ -408,14 +402,14 @@ cdef class VarReader5:
             if mod8:
                 self.cstream.seek(8 - mod8, 1)
         return 0
-    
-    cpdef inline cnp.ndarray read_numeric(self, int copy=True):
+
+    cpdef cnp.ndarray read_numeric(self, int copy=True):
         ''' Read numeric data element into ndarray
 
-        Reads element, then casts to ndarray. 
+        Reads element, then casts to ndarray.
 
         The type of the array is given by the ``mdtype`` returned via
-        ``read_element``. 
+        ``read_element``.
         '''
         cdef cnp.uint32_t mdtype, byte_count
         cdef void *data_ptr
@@ -440,7 +434,7 @@ cdef class VarReader5:
         Py_INCREF(<object> data)
         PyArray_Set_BASE(el, data)
         return el
-            
+
     cdef inline object read_int8_string(self):
         ''' Read, return int8 type string
 
@@ -687,6 +681,21 @@ cdef class VarReader5:
             return squeeze_element(arr)
         return arr
 
+    def shape_from_header(self, VarHeader5 header):
+        cdef int mc = header.mclass
+        cdef tuple shape
+        if mc == mxSPARSE_CLASS:
+            shape = tuple(header.dims)
+        elif mc == mxCHAR_CLASS:
+            shape = tuple(header.dims)
+            if self.chars_as_strings:
+                shape = shape[:-1]
+        else:
+            shape = tuple(header.dims)
+        if self.squeeze_me:
+            shape = tuple([x for x in shape if x != 1])
+        return shape
+
     cpdef cnp.ndarray read_real_complex(self, VarHeader5 header):
         ''' Read real / complex matrices from stream '''
         cdef:
@@ -775,7 +784,7 @@ cdef class VarReader5:
         if byte_count == 0:
             arr = np.array(' ' * length, dtype='U')
             return np.ndarray(shape=header.dims,
-                              dtype=self.U1_dtype,
+                              dtype='U1',
                               buffer=arr,
                               order='F')
         # Character data can be of apparently numerical types,
@@ -805,7 +814,7 @@ cdef class VarReader5:
         # could take this to numpy C-API level, but probably not worth
         # it
         return np.ndarray(shape=header.dims,
-                          dtype=self.U1_dtype,
+                          dtype='U1',
                           buffer=arr,
                           order='F')
 

@@ -6,14 +6,87 @@
 ! $Revision$ $Date$
 !
 ! Additions by Travis Oliphant, Tiziano Zito, Collin RM Stocks, Fabian Pedregosa
+!              Skipper Seabold
 !
 ! <prefix2=s,d> <ctype2=float,double> <ftype2=real,double precision>
 ! <prefix2c=c,z> <ftype2c=complex,double complex> <ctype2c=complex_float,complex_double>
 
-python module flapack
+python module _flapack
 interface
 
    include 'flapack_user.pyf.src'
+
+   subroutine <prefix2>gges(jobvsl,jobvsr,sort_t,<prefix2>select,n,a,lda,b,ldb,sdim,alphar,alphai,beta,vsl,ldvsl,vsr,ldvsr,work,lwork,bwork,info)
+
+     ! For a pair of N-by-N real nonsymmetric matrices (A,B) computes
+     ! the generalized eigenvalues, the generalized real Schur form (S,T),
+     ! optionally, the left and/or right matrices of Schur vectors (VSL
+     ! and VSR).
+     ! (A,B) = ( (VSL)*S*(VSR)**T, (VSL)*T*(VSR)**T )
+
+     callstatement (*f2py_func)((jobvsl?"V":"N"),(jobvsr?"V":"N"),(sort_t?"S":"N"),cb_<prefix2>select_in_gges__user__routines,&n,a,&lda,b,&ldb,&sdim,alphar,alphai,beta,vsl,&ldvsl,vsr,&ldvsr,work,&lwork,bwork,&info)
+     callprotoargument char*,char*,char*,int(*)(<ctype2>*,<ctype2>*,<ctype2>*),int*,<ctype2>*,int*,<ctype2>*,int*,int*,<ctype2>*,<ctype2>*,<ctype2>*,<ctype2>*,int*,<ctype2>*,int*,<ctype2>*,int*,int*,int*
+
+     use gges__user__routines
+
+     integer optional,intent(in),check(jobvsl==0||jobvsl==1) :: jobvsl=1
+     integer optional,intent(in),check(jobvsr==0||jobvsr==1) :: jobvsr=1
+     integer optional,intent(in),check(sort_t==0||sort_t==1) :: sort_t=0
+     external <prefix2>select
+     integer intent(hide),depend(a) :: n=shape(a,1)
+     <ftype2> intent(in,out,copy),dimension(lda,*) :: a
+     integer intent(hide),depend(a) :: lda=shape(a,0)
+     <ftype2> intent(in,out,copy),dimension(ldb,*) :: b
+     integer intent(hide),depend(b) :: ldb=shape(b,0)
+     integer intent(out) :: sdim=0
+     <ftype2> intent(out),dimension(n) :: alphar
+     <ftype2> intent(out),dimension(n) :: alphai
+     <ftype2> intent(out),dimension(n) :: beta
+     <ftype2> intent(out),depend(ldvsl,n),dimension(ldvsl,n) :: vsl
+     integer optional,intent(in),depend(jobvsl,n) :: ldvsl=((jobvsl==1)?n:1)
+     <ftype2> intent(out),depend(ldvsr,n),dimension(ldvsr,n) :: vsr
+     integer optional,intent(in),depend(jobvsr,n) :: ldvsr=((jobvsr==1)?n:1)
+     <ftype2> intent(out),depend(lwork),dimension(MAX(lwork,1)) :: work
+     integer optional,intent(in),depend(n),check(lwork>=MAX(1,MAX(8*n, 6*n+16))||lwork==-1):: lwork=8*n+16
+     logical optional,intent(hide),depend(n),dimension(n) :: bwork
+     integer intent(out):: info
+   end subroutine <prefix2>gges
+
+   subroutine <prefix2c>gges(jobvsl,jobvsr,sort_t,<prefix2c>select,n,a,lda,b,ldb,sdim,alpha,beta,vsl,ldvsl,vsr,ldvsr,work,lwork,rwork,bwork,info)
+
+     ! For a pair of N-by-N complex nonsymmetric matrices (A,B) computes
+     ! the generalized eigenvalues, the generalized real Schur form (S,T),
+     ! optionally, the left and/or right matrices of Schur vectors (VSL
+     ! and VSR).
+     ! (A,B) = ( (VSL)*S*(VSR)**T, (VSL)*T*(VSR)**H )
+
+     callstatement (*f2py_func)((jobvsl?"V":"N"),(jobvsr?"V":"N"),(sort_t?"S":"N"),cb_<prefix2c>select_in_gges__user__routines,&n,a,&lda,b,&ldb,&sdim,alpha,beta,vsl,&ldvsl,vsr,&ldvsr,work,&lwork,rwork,bwork,&info)
+     callprotoargument char*,char*,char*,int(*)(<ctype2c>*,<ctype2c>*),int*,<ctype2c>*,int*,<ctype2c>*,int*,int*,<ctype2c>*,<ctype2c>*,<ctype2c>*,int*,<ctype2c>*,int*,<ctype2c>*,int*,<ctype2>*,int*,int*
+
+     use gges__user__routines
+
+     integer optional,intent(in),check(jobvsl==0||jobvsl==1) :: jobvsl=1
+     integer optional,intent(in),check(jobvsr==0||jobvsr==1) :: jobvsr=1
+     integer optional,intent(in),check(sort_t==0||sort_t==1) :: sort_t=0
+     external <prefix2c>select
+     integer intent(hide),depend(a) :: n=shape(a,1)
+     <ftype2c> intent(in,out,copy),dimension(lda,*) :: a
+     integer intent(hide),depend(a) :: lda=shape(a,0)
+     <ftype2c> intent(in,out,copy),dimension(ldb,*) :: b
+     integer intent(hide),depend(b) :: ldb=shape(b,0)
+     integer intent(out) :: sdim=0
+     <ftype2c> intent(out),dimension(n) :: alpha
+     <ftype2c> intent(out),dimension(n) :: beta
+     <ftype2c> intent(out),depend(ldvsl,n),dimension(ldvsl,n) :: vsl
+     integer optional,intent(in),depend(jobvsl,n) :: ldvsl=((jobvsl==1)?n:1)
+     <ftype2c> intent(out),depend(ldvsr,n),dimension(ldvsr,n) :: vsr
+     integer optional,intent(in),depend(jobvsr,n) :: ldvsr=((jobvsr==1)?n:1)
+     <ftype2c> intent(out),depend(lwork),dimension(MAX(lwork,1)) :: work
+     integer optional,intent(in),depend(n),check(lwork>=MAX(1,2*n)||lwork==-1):: lwork=2*n
+     <ftype2> intent(hide),dimension(8*n) :: rwork
+     logical optional,intent(hide),depend(n),dimension(n) :: bwork
+     integer intent(out):: info
+   end subroutine <prefix2c>gges
 
    subroutine <prefix2>pbtrf(lower,n,kd,ab,ldab,info)
    
@@ -427,7 +500,7 @@ interface
    <ftype2c> dimension(u0,u1),intent(out),depend(u0,u1) :: u
    <ftype2c> dimension(vt0,vt1),intent(out),depend(vt0,vt1) :: vt
    <ftype2c> dimension(lwork),intent(hide,cache),depend(lwork) :: work
-   <ftype2> dimension((compute_uv?minmn*MAX(5*minmn+7, 2*MAX(m,n)+2*minmn+1):5*minmn)),intent(hide,cache),depend(minmn,compute_uv) :: rwork
+   <ftype2> dimension((compute_uv?minmn*MAX(5*minmn+7, 2*MAX(m,n)+2*minmn+1):7*minmn)),intent(hide,cache),depend(minmn,compute_uv) :: rwork
    integer optional,intent(in),depend(minmn,compute_uv) &
         :: lwork = (compute_uv?2*minmn*minmn+MAX(m,n)+2*minmn:2*minmn+MAX(m,n))
    check(lwork>=(compute_uv?2*minmn*minmn+MAX(m,n)+2*minmn:2*minmn+MAX(m,n))) :: lwork
@@ -577,7 +650,7 @@ interface
      <ftype> dimension(m,n),intent(in,out,copy,out=qr,aligned8) :: a
      <ftype> dimension(MIN(m,n)),intent(out) :: tau
 
-     integer optional,intent(in),depend(n),check(lwork>=n||lwork==-1) :: lwork=3*n
+     integer optional,intent(in),depend(m),check(lwork>=m||lwork==-1) :: lwork=3*m
      <ftype> dimension(MAX(lwork,1)),intent(out),depend(lwork) :: work
      integer intent(out) :: info
    end subroutine <prefix>gerqf
@@ -696,7 +769,7 @@ interface
      <ftype2> dimension(m,n),intent(in,out,copy,out=q) :: a
      <ftype2> dimension(k),intent(in) :: tau
 
-     integer optional,intent(in),depend(n),check(lwork>=n||lwork==-1) :: lwork=3*n
+     integer optional,intent(in),depend(m),check(lwork>=m||lwork==-1) :: lwork=3*m
      <ftype2> dimension(MAX(lwork,1)),intent(out),depend(lwork) :: work
      integer intent(out) :: info
    end subroutine <prefix2>orgrq
@@ -718,7 +791,7 @@ interface
      <ftype2c> dimension(m,n),intent(in,out,copy,out=q) :: a
      <ftype2c> dimension(k),intent(in) :: tau
 
-     integer optional,intent(in),depend(n),check(lwork>=n||lwork==-1) :: lwork=3*n
+     integer optional,intent(in),depend(m),check(lwork>=m||lwork==-1) :: lwork=3*m
      <ftype2c> dimension(MAX(lwork,1)),intent(out),depend(lwork) :: work
      integer intent(out) :: info
    end subroutine <prefix2c>ungrq
@@ -930,6 +1003,73 @@ interface
 
      integer intent(out) :: info
    end subroutine <prefix2c>heev
+
+
+   subroutine <prefix2>syevd(compute_v,lower,n,w,a,work,lwork,iwork,liwork,info)
+   ! w,v,info = syevd(a,compute_v=1,lower=0,lwork=min_lwork,overwrite_a=0)
+   ! Compute all eigenvalues and, optionally, eigenvectors of a
+   ! real symmetric matrix A using D&C.
+   !
+   ! Performance tip:
+   !   If compute_v=0 then set also overwrite_a=1.
+
+     callstatement (*f2py_func)((compute_v?"V":"N"),(lower?"L":"U"),&n,a,&n,w,work,&lwork,iwork,&liwork,&info)
+     callprotoargument char*,char*,int*,<ctype2>*,int*,<ctype2>*,<ctype2>*,int*,int*,int*,int*
+
+     integer optional,intent(in):: compute_v = 1
+     check(compute_v==1||compute_v==0) compute_v
+     integer optional,intent(in),check(lower==0||lower==1) :: lower = 0   
+
+     integer intent(hide),depend(a):: n = shape(a,0)
+     <ftype2> dimension(n,n),check(shape(a,0)==shape(a,1)) :: a
+     intent(in,copy,out,out=v) :: a
+
+     <ftype2> dimension(n),intent(out),depend(n) :: w
+
+     integer optional,intent(in),depend(n,compute_v) :: lwork=(compute_v?1+6*n+2*n*n:2*n+1)
+     check(lwork>=(compute_v?1+6*n+2*n*n:2*n+1)) :: lwork
+     <ftype2> dimension(lwork),intent(hide,cache),depend(lwork) :: work
+
+     integer intent(hide),depend(n,compute_v) :: liwork = (compute_v?3+5*n:1)
+     integer dimension(liwork),intent(hide,cache),depend(liwork) :: iwork
+
+     integer intent(out) :: info
+   end subroutine <prefix2>syevd
+
+   subroutine <prefix2c>heevd(compute_v,lower,n,w,a,work,lwork,iwork,liwork,rwork,lrwork,info)
+   ! w,v,info = heevd(a,compute_v=1,lower=0,lwork=min_lwork,overwrite_a=0)
+   ! Compute all eigenvalues and, optionally, eigenvectors of a
+   ! complex Hermitian matrix A using D&C.
+   !
+   ! Warning:
+   !   If compute_v=0 and overwrite_a=1, the contents of a is destroyed.
+
+     callstatement (*f2py_func)((compute_v?"V":"N"),(lower?"L":"U"),&n,a,&n,w,work,&lwork,rwork,&lrwork,iwork,&liwork,&info)
+     callprotoargument char*,char*,int*,<ctype2c>*,int*,<ctype2>*,<ctype2c>*,int*,<ctype2>*,int*,int*,int*,int*
+
+     integer optional,intent(in):: compute_v = 1
+     check(compute_v==1||compute_v==0) compute_v
+     integer optional,intent(in),check(lower==0||lower==1) :: lower = 0   
+
+     integer intent(hide),depend(a):: n = shape(a,0)
+     <ftype2c> dimension(n,n),check(shape(a,0)==shape(a,1)) :: a
+     intent(in,copy,out,out=v) :: a
+
+     <ftype2> dimension(n),intent(out),depend(n) :: w
+
+     integer optional,intent(in),depend(n,compute_v) :: lwork=(compute_v?2*n+n*n:n+1)
+     check(lwork>=(compute_v?2*n+n*n:n+1)) :: lwork
+     <ftype2c> dimension(lwork),intent(hide,cache),depend(lwork) :: work
+
+     integer intent(hide),depend(n,compute_v) :: liwork = (compute_v?3+5*n:1)
+     integer dimension(liwork),intent(hide,cache),depend(liwork) :: iwork
+
+     integer intent(hide),depend(n,compute_v) :: lrwork = (compute_v?1+5*n+2*n*n:n)
+     <ftype2> dimension(lrwork),intent(hide,cache),depend(n,lrwork) :: rwork
+
+     integer intent(out) :: info
+   end subroutine <prefix2c>heevd
+
 
    subroutine <prefix>posv(n,nrhs,a,b,info,lower)
 
@@ -1397,7 +1537,7 @@ subroutine <prefix2>sbevx(ab,ldab,compute_v,range,lower,n,kd,q,ldq,vl,vu,il,iu,a
   !*          If JOBZ = 'V', the N-by-N orthogonal matrix used in the
   !*                         reduction to tridiagonal form.
   !*          If JOBZ = 'N', the array Q is not referenced.
-  integer intent(hide),depend(n) :: ldq=(compute_v?n:1)
+  integer intent(hide),depend(n,compute_v) :: ldq=(compute_v?n:1)
   <ftype2> dimension(ldq,ldq),intent(hide),depend(ldq) :: q
 
 
@@ -1422,8 +1562,8 @@ subroutine <prefix2>sbevx(ab,ldab,compute_v,range,lower,n,kd,q,ldq,vl,vu,il,iu,a
 
   <ftype2> dimension(n),intent(out),depend(n) :: w
 
-  <ftype2> dimension(ldz,mmax),intent(out) :: z
-  integer intent(hide),depend(n) :: ldz=(compute_v?n:1)
+  <ftype2> dimension(ldz,mmax),depend(ldz,mmax),intent(out) :: z
+  integer intent(hide),depend(n,compute_v) :: ldz=(compute_v?n:1)
 
   ! We use the mmax parameter to fix the size of z
   ! (only if eigenvalues are requested)
@@ -1434,12 +1574,12 @@ subroutine <prefix2>sbevx(ab,ldab,compute_v,range,lower,n,kd,q,ldq,vl,vu,il,iu,a
   ! number of eigenvalues in the interval in advance.
   ! As default we use the maximum value
   ! but the user should use an appropriate mmax.
-  integer intent(in),depend(n) :: mmax=(compute_v?(range==2?(iu-il+1):n):1)
+  integer intent(in),depend(n,iu,il,compute_v,range) :: mmax=(compute_v?(range==2?(iu-il+1):n):1)
   integer intent(out) :: m
 
-  <ftype2> dimension(7*n),intent(hide) :: work
-  integer dimension(5*n),intent(hide) :: iwork
-  integer dimension((compute_v?n:1)),intent(out) :: ifail
+  <ftype2> dimension(7*n),depend(n),intent(hide) :: work
+  integer dimension(5*n),depend(n),intent(hide) :: iwork
+  integer dimension((compute_v?n:1)),depend(n,compute_v),intent(out) :: ifail
   integer intent(out):: info
 end subroutine <prefix2>sbevx
 
@@ -1517,7 +1657,7 @@ subroutine <prefix2c>hbevx(ab,ldab,compute_v,range,lower,n,kd,q,ldq,vl,vu,il,iu,
   !*          If JOBZ = 'V', the N-by-N orthogonal matrix used in the
   !*                         reduction to tridiagonal form.
   !*          If JOBZ = 'N', the array Q is not referenced.
-  integer intent(hide),depend(n) :: ldq=(compute_v?n:1)
+  integer intent(hide),depend(n,compute_v) :: ldq=(compute_v?n:1)
   <ftype2c> dimension(ldq,ldq),intent(hide),depend(ldq) :: q
 
 
@@ -1542,8 +1682,8 @@ subroutine <prefix2c>hbevx(ab,ldab,compute_v,range,lower,n,kd,q,ldq,vl,vu,il,iu,
 
   <ftype2> dimension(n),intent(out),depend(n) :: w
 
-  <ftype2c> dimension(ldz,mmax),intent(out) :: z
-  integer intent(hide),depend(n) :: ldz=(compute_v?n:1)
+  <ftype2c> dimension(ldz,mmax),depend(ldz,mmax),intent(out) :: z
+  integer intent(hide),depend(n,compute_v) :: ldz=(compute_v?n:1)
 
   ! We use the mmax parameter to fix the size of z
   ! (only if eigenvalues are requested)
@@ -1554,13 +1694,13 @@ subroutine <prefix2c>hbevx(ab,ldab,compute_v,range,lower,n,kd,q,ldq,vl,vu,il,iu,
   ! number of eigenvalues in the interval in advance.
   ! As default we use the maximum value
   ! but the user should use an appropriate mmax.
-  integer intent(in),depend(n) :: mmax=(compute_v?(range==2?(iu-il+1):n):1)
+  integer intent(in),depend(n,iu,il,compute_v,range) :: mmax=(compute_v?(range==2?(iu-il+1):n):1)
   integer intent(out) :: m
 
-  <ftype2c> dimension(n),intent(hide) :: work
-  <ftype2> dimension(7*n),intent(hide) :: rwork
-  integer dimension(5*n),intent(hide) :: iwork
-  integer dimension((compute_v?n:1)),intent(out) :: ifail
+  <ftype2c> dimension(n),depend(n),intent(hide) :: work
+  <ftype2> dimension(7*n),depend(n),intent(hide) :: rwork
+  integer dimension(5*n),depend(n),intent(hide) :: iwork
+  integer dimension((compute_v?n:1)),depend(n,compute_v),intent(out) :: ifail
   integer intent(out):: info
 end subroutine <prefix2c>hbevx
 
@@ -2069,7 +2209,7 @@ end subroutine zhegvx
 
 end interface
 
-end python module flapack
+end python module _flapack
 
 ! This file was auto-generated with f2py (version:2.10.173).
 ! See http://cens.ioc.ee/projects/f2py2e/

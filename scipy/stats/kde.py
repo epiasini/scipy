@@ -17,19 +17,22 @@
 #
 #-------------------------------------------------------------------------------
 
+from __future__ import division, print_function, absolute_import
+
 # Standard library imports.
 import warnings
 
 # Scipy imports.
+from scipy.lib.six import callable, string_types
 from scipy import linalg, special
+
 from numpy import atleast_2d, reshape, zeros, newaxis, dot, exp, pi, sqrt, \
      ravel, power, atleast_1d, squeeze, sum, transpose
 import numpy as np
 from numpy.random import randint, multivariate_normal
 
 # Local imports.
-import stats
-import mvn
+from . import mvn
 
 
 __all__ = ['gaussian_kde']
@@ -140,7 +143,7 @@ class gaussian_kde(object):
 
     Examples
     --------
-    Generate some random two-dimensional data::
+    Generate some random two-dimensional data:
 
     >>> from scipy import stats
     >>> def measure(n):
@@ -155,7 +158,7 @@ class gaussian_kde(object):
     >>> ymin = m2.min()
     >>> ymax = m2.max()
 
-    Perform a kernel density estimate on the data::
+    Perform a kernel density estimate on the data:
 
     >>> X, Y = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
     >>> positions = np.vstack([X.ravel(), Y.ravel()])
@@ -163,8 +166,9 @@ class gaussian_kde(object):
     >>> kernel = stats.gaussian_kde(values)
     >>> Z = np.reshape(kernel(positions).T, X.shape)
 
-    Plot the results::
+    Plot the results:
 
+    >>> import matplotlib.pyplot as plt
     >>> fig = plt.figure()
     >>> ax = fig.add_subplot(111)
     >>> ax.imshow(np.rot90(Z), cmap=plt.cm.gist_earth_r,
@@ -240,7 +244,8 @@ class gaussian_kde(object):
     __call__ = evaluate
 
     def integrate_gaussian(self, mean, cov):
-        """Multiply estimated density by a multivariate Gaussian and integrate
+        """
+        Multiply estimated density by a multivariate Gaussian and integrate
         over the whole space.
 
         Parameters
@@ -257,8 +262,9 @@ class gaussian_kde(object):
 
         Raises
         ------
-        ValueError : if the mean or covariance of the input Gaussian differs from
-                     the KDE's dimensionality.
+        ValueError :
+            If the mean or covariance of the input Gaussian differs from
+            the KDE's dimensionality.
 
         """
         mean = atleast_1d(squeeze(mean))
@@ -278,13 +284,14 @@ class gaussian_kde(object):
         tdiff = dot(linalg.inv(sum_cov), diff)
 
         energies = sum(diff * tdiff, axis=0) / 2.0
-        result = sum(exp(-energies), axis=0) / sqrt(linalg.det(2 * pi * \
+        result = sum(exp(-energies), axis=0) / sqrt(linalg.det(2 * pi *
                                                         sum_cov)) / self.n
 
         return result
 
     def integrate_box_1d(self, low, high):
-        """Computes the integral of a 1D pdf between two bounds.
+        """
+        Computes the integral of a 1D pdf between two bounds.
 
         Parameters
         ----------
@@ -300,7 +307,8 @@ class gaussian_kde(object):
 
         Raises
         ------
-        ValueError : if the KDE is over more than one dimension.
+        ValueError
+            If the KDE is over more than one dimension.
 
         """
         if self.d != 1:
@@ -311,10 +319,9 @@ class gaussian_kde(object):
         normalized_low = ravel((low - self.dataset) / stdev)
         normalized_high = ravel((high - self.dataset) / stdev)
 
-        value = np.mean(special.ndtr(normalized_high) - \
+        value = np.mean(special.ndtr(normalized_high) -
                         special.ndtr(normalized_low))
         return value
-
 
     def integrate_box(self, low_bounds, high_bounds, maxpts=None):
         """Computes the integral of a pdf over a rectangular interval.
@@ -349,7 +356,8 @@ class gaussian_kde(object):
         return value
 
     def integrate_kde(self, other):
-        """Computes the integral of the product of this  kernel density estimate
+        """
+        Computes the integral of the product of this  kernel density estimate
         with another.
 
         Parameters
@@ -364,7 +372,8 @@ class gaussian_kde(object):
 
         Raises
         ------
-        ValueError : if the KDEs have different dimensionality.
+        ValueError
+            If the KDEs have different dimensionality.
 
         """
         if other.d != self.d:
@@ -393,7 +402,8 @@ class gaussian_kde(object):
         return result
 
     def resample(self, size=None):
-        """Randomly sample a dataset from the estimated pdf.
+        """
+        Randomly sample a dataset from the estimated pdf.
 
         Parameters
         ----------
@@ -403,7 +413,7 @@ class gaussian_kde(object):
 
         Returns
         -------
-        dataset : (self.d, size)-array
+        resample : (self.d, `size`) ndarray
             The sampled dataset.
 
         """
@@ -474,7 +484,7 @@ class gaussian_kde(object):
             self.covariance_factor = self.scotts_factor
         elif bw_method == 'silverman':
             self.covariance_factor = self.silverman_factor
-        elif np.isscalar(bw_method) and not isinstance(bw_method, basestring):
+        elif np.isscalar(bw_method) and not isinstance(bw_method, string_types):
             self._bw_method = 'use constant'
             self.covariance_factor = lambda: bw_method
         elif callable(bw_method):

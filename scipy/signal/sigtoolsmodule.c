@@ -772,8 +772,8 @@ static void fill_buffer(char *ip1, PyArrayObject *ap1, PyArrayObject *ap2, char 
   int ndims = ap1->nd;
   intp *dims2 = ap2->dimensions;
   intp *dims1 = ap1->dimensions;
-  intp is1 = ap1->strides[ndims-1];
-  intp is2 = ap2->strides[ndims-1];
+  intp is1 = ap1->descr->elsize;
+  intp is2 = ap2->descr->elsize;
   char *ip2 = ap2->data;
   int elsize = ap1->descr->elsize;
   char *ptr;
@@ -1009,7 +1009,7 @@ static PyObject *sigtools_convolve2d(PyObject *NPY_UNUSED(dummy), PyObject *args
     int mode=2, boundary=0, typenum, flag, flip=1, ret;
     intp *aout_dimens=NULL, *dims=NULL;
     char zeros[32];  /* Zeros */
-    int n1, n2, i;
+    int i;
     PyArrayObject *ain1=NULL, *ain2=NULL, *aout=NULL;
     PyArrayObject *afill=NULL, *newfill=NULL;
 
@@ -1041,10 +1041,7 @@ static PyObject *sigtools_convolve2d(PyObject *NPY_UNUSED(dummy), PyObject *args
 	newfill = (PyArrayObject *)PyArray_SimpleNewFromData(0, dims, typenum, zeros);
 	if (newfill == NULL) goto fail;
     }
-    
-    n1 = PyArray_Size((PyObject *)ain1);
-    n2 = PyArray_Size((PyObject *)ain2);
-    
+
     aout_dimens = malloc(ain1->nd*sizeof(intp));
     switch(mode & OUTSIZE_MASK) {
     case VALID:
@@ -1088,6 +1085,7 @@ static PyObject *sigtools_convolve2d(PyObject *NPY_UNUSED(dummy), PyObject *args
 
     switch (ret) {
     case 0:
+      free(aout_dimens);
       Py_DECREF(ain1);
       Py_DECREF(ain2);
       Py_XDECREF(afill);
@@ -1326,7 +1324,7 @@ static struct PyModuleDef moduledef = {
 };
 PyObject *PyInit_sigtools(void)
 {
-    PyObject *m, *d, *s;
+    PyObject *m;
 
     m = PyModule_Create(&moduledef);
 	import_array();
@@ -1339,10 +1337,8 @@ PyObject *PyInit_sigtools(void)
 /* Initialization function for the module (*must* be called initsigtools) */
 
 PyMODINIT_FUNC initsigtools(void) {
-        PyObject *m, *d;
-	
-	/* Create the module and add the functions */
-	m = Py_InitModule("sigtools", toolbox_module_methods);
+    /* Create the module and add the functions */
+    Py_InitModule("sigtools", toolbox_module_methods);
 
 	/* Import the C API function pointers for the Array Object*/
 	import_array();
@@ -1354,15 +1350,7 @@ PyMODINIT_FUNC initsigtools(void) {
 	PyImport_ImportModule("numpy.core.multiarray");
 	/* { PyObject *multi = PyImport_ImportModule("multiarray"); } */
 
-	/* Add some symbolic constants to the module */
-	d = PyModule_GetDict(m);
-
-	/* PyDict_SetItemString(d,"BANDPASS", PyInt_FromLong((long) BANDPASS));
-        PyDict_SetItemString(d,"DIFFERENTIATOR", PyInt_FromLong((long) DIFFERENTIATOR));
-        PyDict_SetItemString(d,"HILBERT", PyInt_FromLong((long) HILBERT));
-        */
-
-        scipy_signal_sigtools_linear_filter_module_init();
+    scipy_signal_sigtools_linear_filter_module_init();
 
 	/* Check for errors */
 	if (PyErr_Occurred()) {

@@ -9,18 +9,47 @@ Fundamental Physical Constants
 These constants are taken from CODATA Recommended Values of the Fundamental
 Physical Constants 2010.
 
+Object
+------
+physical_constants : dict
+    A dictionary containing physical constants. Keys are the names of
+    physical constants, values are tuples (value, units, precision).
+
+Functions
+---------
+value(key):
+    Returns the value of the physical constant(key).
+unit(key):
+    Returns the units of the physical constant(key).
+precision(key):
+    Returns the relative precision of the physical constant(key).
+find(sub):
+    Prints or returns list of keys containing the string sub, default is
+    all.
+
+Source
+------
 The values of the constants provided at this site are recommended for
 international use by CODATA and are the latest available. Termed the "2010
 CODATA recommended values," they are generally recognized worldwide for use in
 all fields of science and technology. The values became available on 2 June
 2011 and replaced the 2006 CODATA set. They are based on all of the data
 available through 31 December 2010. The 2010 adjustment was carried out under
-the auspices of the CODATA Task Group on Fundamental Constants. Also available
-is an Introduction to the constants for nonexperts.
+the auspices of the CODATA Task Group on Fundamental Constants. See References
+for an introduction to the constants for nonexperts.
+
+References
+----------
+Theoretical and experimental publications relevant to the fundamental
+constants and closely related precision measurements published since the mid
+1980s, but also including many older papers of particular interest, some of
+which date back to the 1800s. To search bibliography visit
 
 http://physics.nist.gov/cuu/Constants/
 
 """
+from __future__ import division, print_function, absolute_import
+
 
 import warnings
 from math import pi, sqrt
@@ -777,6 +806,7 @@ Wien wavelength displacement law constant              2.897 7721 e-3        0.0
 
 physical_constants = {}
 
+
 def parse_constants(d):
     constants = {}
     for line in d.split('\n'):
@@ -801,29 +831,32 @@ _current_codata = "CODATA 2010"
 
 # check obsolete values
 _obsolete_constants = {}
-for k in physical_constants.iterkeys():
+for k in physical_constants:
     if k not in _current_constants:
         _obsolete_constants[k] = True
 
 # generate some additional aliases
 _aliases = {}
-for k in _physical_constants_2002.iterkeys():
+for k in _physical_constants_2002:
     if 'magn.' in k:
         _aliases[k] = k.replace('magn.', 'mag.')
-for k in _physical_constants_2006.iterkeys():
+for k in _physical_constants_2006:
     if 'momentum' in k:
         _aliases[k] = k.replace('momentum', 'mom.um')
+
 
 class ConstantWarning(DeprecationWarning):
     """Accessing a constant no longer in current CODATA data set"""
     pass
+
 
 def _check_obsolete(key):
     if key in _obsolete_constants and key not in _aliases:
         warnings.warn("Constant '%s' is not in current %s data set" % (
             key, _current_codata), ConstantWarning)
 
-def value(key) :
+
+def value(key):
     """
     Value in physical_constants indexed by key
 
@@ -852,7 +885,8 @@ def value(key) :
     _check_obsolete(key)
     return physical_constants[key][0]
 
-def unit(key) :
+
+def unit(key):
     """
     Unit in physical_constants indexed by key
 
@@ -881,7 +915,8 @@ def unit(key) :
     _check_obsolete(key)
     return physical_constants[key][1]
 
-def precision(key) :
+
+def precision(key):
     """
     Relative precision in physical_constants indexed by key
 
@@ -910,6 +945,7 @@ def precision(key) :
     _check_obsolete(key)
     return physical_constants[key][2] / physical_constants[key][0]
 
+
 def find(sub=None, disp=False):
     """
     Return list of codata.physical_constant keys containing a given string.
@@ -935,15 +971,15 @@ def find(sub=None, disp=False):
 
     """
     if sub is None:
-        result = _current_constants.keys()
+        result = list(_current_constants.keys())
     else:
-        result = [key for key in _current_constants \
+        result = [key for key in _current_constants
                  if sub.lower() in key.lower()]
 
     result.sort()
     if disp:
         for key in result:
-            print key
+            print(key)
         return
     else:
         return result
@@ -957,7 +993,7 @@ exact_values = {
 'mag. constant': (mu0, 'N A^-2', 0.0),
 'electric constant': (epsilon0, 'F m^-1', 0.0),
 'characteristic impedance of vacuum': (sqrt(mu0/epsilon0), 'ohm', 0.0),
-'atomic unit of permittivity': (4*epsilon0*pi, 'F m^-1', 0.0), #is that the definition?
+'atomic unit of permittivity': (4*epsilon0*pi, 'F m^-1', 0.0),  # is that the definition?
 'joule-kilogram relationship': (1/(c*c), 'kg', 0.0),
 'kilogram-joule relationship': (c*c, 'J', 0.0),
 'hertz-inverse meter relationship': (1/c, 'm^-1', 0.0)

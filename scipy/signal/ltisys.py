@@ -2,6 +2,7 @@
 ltisys -- a collection of classes and functions for modeling linear
 time invariant systems.
 """
+from __future__ import division, print_function, absolute_import
 
 #
 # Author: Travis Oliphant 2001
@@ -10,18 +11,20 @@ time invariant systems.
 #   Rewrote lsim2 and added impulse2.
 #
 
-from filter_design import tf2zpk, zpk2tf, normalize
+from .filter_design import tf2zpk, zpk2tf, normalize, freqs
 import numpy
 from numpy import product, zeros, array, dot, transpose, ones, \
     nan_to_num, zeros_like, linspace
 import scipy.interpolate as interpolate
 import scipy.integrate as integrate
 import scipy.linalg as linalg
+from scipy.lib.six.moves import xrange
 from numpy import r_, eye, real, atleast_1d, atleast_2d, poly, \
      squeeze, diag, asarray
 
 __all__ = ['tf2ss', 'ss2tf', 'abcd_normalize', 'zpk2ss', 'ss2zpk', 'lti',
-           'lsim', 'lsim2', 'impulse', 'impulse2', 'step', 'step2']
+           'lsim', 'lsim2', 'impulse', 'impulse2', 'step', 'step2', 'bode',
+           'freqresp']
 
 
 def tf2ss(num, den):
@@ -91,7 +94,7 @@ def abcd_normalize(A=None, B=None, C=None, D=None):
     A, B, C, D = map(_none_to_empty, (A, B, C, D))
     A, B, C, D = map(atleast_2d, (A, B, C, D))
 
-    if ((len(A.shape) > 2) or (len(B.shape) > 2) or \
+    if ((len(A.shape) > 2) or (len(B.shape) > 2) or
         (len(C.shape) > 2) or (len(D.shape) > 2)):
         raise ValueError("A, B, C, D arrays can be no larger than rank-2.")
 
@@ -224,12 +227,36 @@ def ss2zpk(A, B, C, D, input=0):
 
 class lti(object):
     """Linear Time Invariant class which simplifies representation.
+
+    Parameters
+    ----------
+    args : arguments
+        The `lti` class can be instantiated with either 2, 3 or 4 arguments.
+        The following gives the number of elements in the tuple and the
+        interpretation:
+
+            * 2: (numerator, denominator)
+            * 3: (zeros, poles, gain)
+            * 4: (A, B, C, D)
+
+        Each argument can be an array or sequence.
+
+    Notes
+    -----
+    `lti` instances have all types of representations available; for example
+    after creating an instance s with ``(zeros, poles, gain)`` the transfer
+    function representation (numerator, denominator) can be accessed as
+    ``s.num`` and ``s.den``.
+
     """
     def __init__(self, *args, **kwords):
-        """Initialize the LTI system using either:
-           (numerator, denominator)
-           (zeros, poles, gain)
-           (A, B, C, D) -- state-space.
+        """
+        Initialize the LTI system using either:
+
+            - (numerator, denominator)
+            - (zeros, poles, gain)
+            - (A, B, C, D) : state-space.
+
         """
         N = len(args)
         if N == 2:  # Numerator denominator transfer function input
@@ -251,6 +278,9 @@ class lti(object):
             self.__dict__['A'], self.__dict__['B'], \
                                 self.__dict__['C'], \
                                 self.__dict__['D'] = zpk2ss(*args)
+            # make sure we have numpy arrays
+            self.zeros = numpy.asarray(self.zeros)
+            self.poles = numpy.asarray(self.poles)
             self.inputs = 1
             if len(self.zeros.shape) > 1:
                 self.outputs = self.zeros.shape[0]
@@ -300,6 +330,17 @@ class lti(object):
         else:
             self.__dict__[attr] = val
 
+    def __repr__(self):
+        # Canonical representation using state-space to preserve numerical
+        # precision and any MIMO information
+        return '{0}(\n{1},\n{2},\n{3},\n{4}\n)'.format(
+            self.__class__.__name__,
+            repr(self.A),
+            repr(self.B),
+            repr(self.C),
+            repr(self.D),
+            )
+
     def impulse(self, X0=None, T=None, N=None):
         return impulse(self, X0=X0, T=T, N=N)
 
@@ -308,6 +349,42 @@ class lti(object):
 
     def output(self, U, T, X0=None):
         return lsim(self, U, T, X0=X0)
+
+    def bode(self, w=None, n=100):
+        """
+        Calculate Bode magnitude and phase data.
+
+        Returns a 3-tuple containing arrays of frequencies [rad/s], magnitude
+        [dB] and phase [deg]. See scipy.signal.bode for details.
+
+        .. versionadded:: 0.11.0
+
+        Examples
+        --------
+        >>> from scipy import signal
+        >>> import matplotlib.pyplot as plt
+
+        >>> s1 = signal.lti([1], [1, 1])
+        >>> w, mag, phase = s1.bode()
+
+        >>> plt.figure()
+        >>> plt.semilogx(w, mag)    # Bode magnitude plot
+        >>> plt.figure()
+        >>> plt.semilogx(w, phase)  # Bode phase plot
+        >>> plt.show()
+
+        """
+        return bode(self, w=w, n=n)
+
+    def freqresp(self, w=None, n=10000):
+        """Calculate the frequency response of a continuous-time system.
+
+        Returns a 2-tuple containing arrays of frequencies [rad/s] and
+        complex magnitude.
+        See scipy.signal.freqresp for details.
+
+        """
+        return freqresp(self, w=w, n=n)
 
 
 def lsim2(system, U=None, T=None, X0=None, **kwargs):
@@ -340,7 +417,7 @@ def lsim2(system, U=None, T=None, X0=None, **kwargs):
         given, the initial conditions are assumed to be 0.
     kwargs : dict
         Additional keyword arguments are passed on to the function
-        odeint.  See the notes below for more details.
+        `odeint`.  See the notes below for more details.
 
     Returns
     -------
@@ -353,10 +430,10 @@ def lsim2(system, U=None, T=None, X0=None, **kwargs):
 
     Notes
     -----
-    This function uses :func:`scipy.integrate.odeint` to solve the
+    This function uses `scipy.integrate.odeint` to solve the
     system's differential equations.  Additional keyword arguments
     given to `lsim2` are passed on to `odeint`.  See the documentation
-    for :func:`scipy.integrate.odeint` for the full list of arguments.
+    for `scipy.integrate.odeint` for the full list of arguments.
 
     """
     if isinstance(system, lti):
@@ -598,15 +675,16 @@ def impulse2(system, X0=None, T=None, N=None, **kwargs):
     """
     Impulse response of a single-input, continuous-time linear system.
 
-
     Parameters
     ----------
     system : an instance of the LTI class or a tuple describing the system.
         The following gives the number of elements in the tuple and
         the interpretation:
-            2 (num, den)
-            3 (zeros, poles, gain)
-            4 (A, B, C, D)
+
+            * 2 (num, den)
+            * 3 (zeros, poles, gain)
+            * 4 (A, B, C, D)
+
     T : 1-D array_like, optional
         The time steps at which the input is defined and at which the
         output is desired.  If `T` is not given, the function will
@@ -640,15 +718,13 @@ def impulse2(system, X0=None, T=None, N=None, **kwargs):
 
     .. versionadded:: 0.8.0
 
-
     Examples
     --------
-
     Second order system with a repeated root: x''(t) + 2*x(t) + x(t) = u(t)
 
-    >>> import scipy.signal
+    >>> from scipy import signal
     >>> system = ([1.0], [1.0, 2.0, 1.0])
-    >>> t, y = sp.signal.impulse2(system)
+    >>> t, y = signal.impulse2(system)
     >>> import matplotlib.pyplot as plt
     >>> plt.plot(t, y)
 
@@ -682,10 +758,12 @@ def step(system, X0=None, T=None, N=None):
     ----------
     system : an instance of the LTI class or a tuple describing the system.
         The following gives the number of elements in the tuple and
-        the interpretation.
-            2 (num, den)
-            3 (zeros, poles, gain)
-            4 (A, B, C, D)
+        the interpretation:
+
+            * 2 (num, den)
+            * 3 (zeros, poles, gain)
+            * 4 (A, B, C, D)
+
     X0 : array_like, optional
         Initial state-vector (default is zero).
     T : array_like, optional
@@ -703,6 +781,7 @@ def step(system, X0=None, T=None, N=None):
     See also
     --------
     scipy.signal.step2
+
     """
     if isinstance(system, lti):
         sys = system
@@ -728,22 +807,23 @@ def step2(system, X0=None, T=None, N=None, **kwargs):
     ----------
     system : an instance of the LTI class or a tuple describing the system.
         The following gives the number of elements in the tuple and
-        the interpretation.
-            2 (num, den)
-            3 (zeros, poles, gain)
-            4 (A, B, C, D)
+        the interpretation:
+
+            * 2 (num, den)
+            * 3 (zeros, poles, gain)
+            * 4 (A, B, C, D)
+
     X0 : array_like, optional
         Initial state-vector (default is zero).
     T : array_like, optional
         Time points (computed if not given).
     N : int
         Number of time points to compute if `T` is not given.
-    **kwargs :
+    kwargs : various types
         Additional keyword arguments are passed on the function
         `scipy.signal.lsim2`, which in turn passes them on to
-        :func:`scipy.integrate.odeint`.  See the documentation for
-        :func:`scipy.integrate.odeint` for information about these
-        arguments.
+        `scipy.integrate.odeint`.  See the documentation for
+        `scipy.integrate.odeint` for information about these arguments.
 
     Returns
     -------
@@ -771,3 +851,127 @@ def step2(system, X0=None, T=None, N=None, **kwargs):
     U = ones(T.shape, sys.A.dtype)
     vals = lsim2(sys, U, T, X0=X0, **kwargs)
     return vals[0], vals[1]
+
+
+def bode(system, w=None, n=100):
+    """
+    Calculate Bode magnitude and phase data of a continuous-time system.
+
+    .. versionadded:: 0.11.0
+
+    Parameters
+    ----------
+    system : an instance of the LTI class or a tuple describing the system.
+        The following gives the number of elements in the tuple and
+        the interpretation:
+
+            * 2 (num, den)
+            * 3 (zeros, poles, gain)
+            * 4 (A, B, C, D)
+
+    w : array_like, optional
+        Array of frequencies (in rad/s). Magnitude and phase data is calculated
+        for every value in this array. If not given a reasonable set will be
+        calculated.
+    n : int, optional
+        Number of frequency points to compute if `w` is not given. The `n`
+        frequencies are logarithmically spaced in an interval chosen to
+        include the influence of the poles and zeros of the system.
+
+    Returns
+    -------
+    w : 1D ndarray
+        Frequency array [rad/s]
+    mag : 1D ndarray
+        Magnitude array [dB]
+    phase : 1D ndarray
+        Phase array [deg]
+
+    Examples
+    --------
+    >>> from scipy import signal
+    >>> import matplotlib.pyplot as plt
+
+    >>> s1 = signal.lti([1], [1, 1])
+    >>> w, mag, phase = signal.bode(s1)
+
+    >>> plt.figure()
+    >>> plt.semilogx(w, mag)    # Bode magnitude plot
+    >>> plt.figure()
+    >>> plt.semilogx(w, phase)  # Bode phase plot
+    >>> plt.show()
+
+    """
+    w, y = freqresp(system, w=w, n=n)
+
+    mag = 20.0 * numpy.log10(abs(y))
+    phase = numpy.arctan2(y.imag, y.real) * 180.0 / numpy.pi
+
+    return w, mag, phase
+
+
+def freqresp(system, w=None, n=10000):
+    """Calculate the frequency response of a continuous-time system.
+
+    Parameters
+    ----------
+    system : an instance of the LTI class or a tuple describing the system.
+        The following gives the number of elements in the tuple and
+        the interpretation:
+
+            * 2 (num, den)
+            * 3 (zeros, poles, gain)
+            * 4 (A, B, C, D)
+
+    w : array_like, optional
+        Array of frequencies (in rad/s). Magnitude and phase data is
+        calculated for every value in this array. If not given a reasonable
+        set will be calculated.
+    n : int, optional
+        Number of frequency points to compute if `w` is not given. The `n`
+        frequencies are logarithmically spaced in an interval chosen to
+        include the influence of the poles and zeros of the system.
+
+    Returns
+    -------
+    w : 1D ndarray
+        Frequency array [rad/s]
+    H : 1D ndarray
+        Array of complex magnitude values
+
+    Examples
+    --------
+    # Generating the Nyquist plot of a transfer function
+
+    >>> from scipy import signal
+    >>> import matplotlib.pyplot as plt
+
+    >>> s1 = signal.lti([], [1, 1, 1], [5])
+    # transfer function: H(s) = 5 / (s-1)^3
+
+    >>> w, H = signal.freqresp(s1)
+
+    >>> plt.figure()
+    >>> plt.plot(H.real, H.imag, "b")
+    >>> plt.plot(H.real, -H.imag, "r")
+    >>> plt.show()
+    """
+    if isinstance(system, lti):
+        sys = system
+    else:
+        sys = lti(*system)
+
+    if sys.inputs != 1 or sys.outputs != 1:
+        raise ValueError("freqresp() requires a SISO (single input, single "
+                         "output) system.")
+
+    if w is not None:
+        worN = w
+    else:
+        worN = n
+
+    # In the call to freqs(), sys.num.ravel() is used because there are
+    # cases where sys.num is a 2-D array with a single row.
+    w, h = freqs(sys.num.ravel(), sys.den, worN=worN)
+
+    return w, h

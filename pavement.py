@@ -65,6 +65,7 @@ import sys
 import subprocess
 import re
 import shutil
+import warnings
 try:
     from hash import md5
 except ImportError:
@@ -111,10 +112,10 @@ finally:
 #-----------------------------------
 
 # Source of the release notes
-RELEASE = 'doc/release/0.11.0-notes.rst'
+RELEASE = 'doc/release/0.13.0-notes.rst'
 
 # Start/end of the log (from git)
-LOG_START = 'v0.10.0'
+LOG_START = 'v0.12.0'
 LOG_END = 'master'
 
 
@@ -127,7 +128,7 @@ PYVER="2.6"
 
 # Paver options object, holds all default dirs
 options(bootstrap=Bunch(bootstrap_dir="bootstrap"),
-        virtualenv=Bunch(packages_to_install=["sphinx==1.0.4", "numpydoc"],
+        virtualenv=Bunch(packages_to_install=["sphinx==1.1.3", "numpydoc"],
                          no_site_packages=False),
         sphinx=Bunch(builddir="build", sourcedir="source", docroot='doc'),
         superpack=Bunch(builddir="build-superpack",
@@ -151,39 +152,40 @@ SITECFG = {"sse3" : {'BLAS': 'None', 'LAPACK': 'None', 'ATLAS': r'C:\local\lib\y
 
 # Wine config for win32 builds
 if sys.platform == "win32":
-    WINE_PY25 = [r"C:\Python25\python.exe"]
     WINE_PY26 = [r"C:\Python26\python26.exe"]
     WINE_PY27 = [r"C:\Python27\python27.exe"]
     WINE_PY31 = [r"C:\Python31\python.exe"]
     WINE_PY32 = [r"C:\Python32\python.exe"]
+    WINE_PY33 = [r"C:\Python33\python.exe"]
     WINDOWS_ENV = os.environ
     MAKENSIS = ["makensis"]
 elif sys.platform == "darwin":
-    WINE_PY25 = ["wine", os.environ['HOME'] + "/.wine/drive_c/Python25/python.exe"]
     WINE_PY26 = ["wine", os.environ['HOME'] + "/.wine/drive_c/Python26/python.exe"]
     WINE_PY27 = ["wine", os.environ['HOME'] + "/.wine/drive_c/Python27/python.exe"]
     WINE_PY31 = ["wine", os.environ['HOME'] + "/.wine/drive_c/Python31/python.exe"]
     WINE_PY32 = ["wine", os.environ['HOME'] + "/.wine/drive_c/Python32/python.exe"]
+    WINE_PY33 = ["wine", os.environ['HOME'] + "/.wine/drive_c/Python33/python.exe"]
     WINDOWS_ENV = os.environ
     WINDOWS_ENV["DYLD_FALLBACK_LIBRARY_PATH"] = "/usr/X11/lib:/usr/lib"
     MAKENSIS = ["wine", "makensis"]
 else:
-    WINE_PY25 = [os.environ['HOME'] + "/.wine/drive_c/Python25/python.exe"]
     WINE_PY26 = [os.environ['HOME'] + "/.wine/drive_c/Python26/python.exe"]
     WINE_PY27 = [os.environ['HOME'] + "/.wine/drive_c/Python27/python.exe"]
     WINE_PY31 = [os.environ['HOME'] + "/.wine/drive_c/Python31/python.exe"],
     WINE_PY32 = [os.environ['HOME'] + "/.wine/drive_c/Python32/python.exe"],
+    WINE_PY33 = [os.environ['HOME'] + "/.wine/drive_c/Python33/python.exe"],
     WINDOWS_ENV = os.environ
     MAKENSIS = ["wine", "makensis"]
-WINE_PYS = {'3.2':WINE_PY32, '3.1':WINE_PY31, '2.7':WINE_PY27,
-            '2.6':WINE_PY26, '2.5':WINE_PY25}
+WINE_PYS = {'3.3':WINE_PY33, '3.2':WINE_PY32, '3.1':WINE_PY31,
+            '2.7':WINE_PY27, '2.6':WINE_PY26}
 
 # Framework Python locations on OS X
 MPKG_PYTHON = {"2.5": "/Library/Frameworks/Python.framework/Versions/2.5/bin/python",
         "2.6": "/Library/Frameworks/Python.framework/Versions/2.6/bin/python",
         "2.7": "/Library/Frameworks/Python.framework/Versions/2.7/bin/python",
         "3.1": "/Library/Frameworks/Python.framework/Versions/3.1/bin/python3",
-        "3.2": "/Library/Frameworks/Python.framework/Versions/3.2/bin/python3"}
+        "3.2": "/Library/Frameworks/Python.framework/Versions/3.2/bin/python3",
+        "3.3": "/Library/Frameworks/Python.framework/Versions/3.3/bin/python3"}
 # Full path to the *static* gfortran runtime
 LIBGFORTRAN_A_PATH = "/usr/local/lib/libgfortran.a"
 
@@ -381,10 +383,7 @@ def bdist_superpack(options):
     pyver = options.python_version
     def copy_bdist(arch):
         # Copy the wininst in dist into the release directory
-        if int(pyver[0]) >= 3:
-            source = os.path.join('build', 'py3k', 'dist', wininst_name(pyver))
-        else:
-            source = os.path.join('dist', wininst_name(pyver))
+        source = os.path.join('dist', wininst_name(pyver))
         target = os.path.join(options.superpack.bindir, internal_wininst_name(arch))
         if os.path.exists(target):
             os.remove(target)
@@ -513,7 +512,8 @@ def dmg():
     idirs = options.installers.installersdir
 
     # Check if doc exists. If not, say so and quit.
-    ref = os.path.join(options.doc.destdir_pdf, "reference.pdf")
+    docpath = options.doc.destdir_pdf
+    ref = os.path.join(docpath, "reference.pdf")
     if not os.path.exists(ref):
         warnings.warn("Docs need to be built first! \n%s not found." % docpath)
 
@@ -644,5 +644,5 @@ def write_log():
 
 @task
 def write_release_and_log():
-    write_release_task(os.path.join(options.installers.releasedir, 'README.txt'))
+    write_release_task(os.path.join(options.installers.releasedir, 'README.rst'))
     write_log_task(os.path.join(options.installers.releasedir, 'Changelog'))

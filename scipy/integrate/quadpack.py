@@ -1,14 +1,16 @@
 # Author: Travis Oliphant 2001
+from __future__ import division, print_function, absolute_import
 
-import _quadpack
+from . import _quadpack
 import sys
 import numpy
-from numpy import inf, Inf
+from numpy import Inf
 
 __all__ = ['quad', 'dblquad', 'tplquad', 'quad_explain']
 
 
 error = _quadpack.error
+
 
 def quad_explain(output=sys.stdout):
     """
@@ -200,7 +202,7 @@ def quad(func, a, b, args=(), full_output=0, epsabs=1.49e-8, epsrel=1.49e-8,
     wvar :
         variables for use with weighting functions.
     limlst :
-        Upper bound on the number of cylces (>=3) for use with a sinusoidal
+        Upper bound on the number of cycles (>=3) for use with a sinusoidal
         weighting and an infinite end-point.
     wopts :
         Optional input for reusing Chebyshev moments.
@@ -224,7 +226,7 @@ def quad(func, a, b, args=(), full_output=0, epsabs=1.49e-8, epsrel=1.49e-8,
     >>> x2 = lambda x: x**2
     >>> integrate.quad(x2,0.,4.)
     (21.333333333333332, 2.3684757858670003e-13)
-    >> print 4.**3/3
+    >> print(4.**3/3)
     21.3333333333
 
     Calculate :math:`\\int^\\infty_0 e^{-x} dx`
@@ -242,7 +244,8 @@ def quad(func, a, b, args=(), full_output=0, epsabs=1.49e-8, epsrel=1.49e-8,
     1.5
 
     """
-    if type(args) != type(()): args = (args,)
+    if not isinstance(args, tuple):
+        args = (args,)
     if (weight is None):
         retval = _quad(func,a,b,args,full_output,epsabs,epsrel,limit,points)
     else:
@@ -269,7 +272,7 @@ def quad(func, a, b, args=(), full_output=0, epsabs=1.49e-8, epsrel=1.49e-8,
         explain = {1: "The maximum number of subdivisions (= limit) has been \n  achieved on this cycle.",
                    2: "The occurrence of roundoff error is detected and prevents\n  the tolerance imposed on this cycle from being achieved.",
                    3: "Extremely bad integrand behavior occurs at some points of\n  this cycle.",
-                   4: "The integral over this cycle does not converge (to within the required accuracy) due ot roundoff in the extrapolation procedure invoked on this cycle.  It is assumed that the result on this interval is the best which can be obtained.",
+                   4: "The integral over this cycle does not converge (to within the required accuracy) due to roundoff in the extrapolation procedure invoked on this cycle.  It is assumed that the result on this interval is the best which can be obtained.",
                    5: "The integral over this cycle is probably divergent or slowly convergent."}
 
     try:
@@ -313,7 +316,7 @@ def _quad(func,a,b,args,full_output,epsabs,epsrel,limit,points):
         else:
             return _quadpack._qagie(func,bound,infbounds,args,full_output,epsabs,epsrel,limit)
     else:
-        if infbounds !=0:
+        if infbounds != 0:
             raise ValueError("Infinity inputs cannot be used with break points.")
         else:
             nl = len(points)
@@ -347,13 +350,13 @@ def _quad_weight(func,a,b,args,full_output,epsabs,epsrel,limlst,limit,maxp1,weig
                     y = -x
                     func = myargs[0]
                     myargs = (y,) + myargs[1:]
-                    return apply(func,myargs)
+                    return func(*myargs)
             else:
                 def thefunc(x,*myargs):
                     y = -x
                     func = myargs[0]
                     myargs = (y,) + myargs[1:]
-                    return -apply(func,myargs)
+                    return -func(*myargs)
             args = (func,) + args
             return _quadpack._qawfe(thefunc,-b,wvar,integr,args,full_output,epsabs,limlst,limit,maxp1)
         else:
@@ -368,11 +371,13 @@ def _quad_weight(func,a,b,args,full_output,epsabs,epsrel,limlst,limit,maxp1,weig
         else:  # weight == 'cauchy'
             return _quadpack._qawce(func,a,b,wvar,args,full_output,epsabs,epsrel,limit)
 
+
 def _infunc(x,func,gfun,hfun,more_args):
     a = gfun(x)
     b = hfun(x)
     myargs = (x,) + more_args
     return quad(func,a,b,args=myargs)[0]
+
 
 def dblquad(func, a, b, gfun, hfun, args=(), epsabs=1.49e-8, epsrel=1.49e-8):
     """
@@ -382,7 +387,7 @@ def dblquad(func, a, b, gfun, hfun, args=(), epsabs=1.49e-8, epsrel=1.49e-8):
     y=gfun(x)..hfun(x).
 
     Parameters
-    -----------
+    ----------
     func : callable
         A Python function or method of at least two variables: y must be the
         first argument and x the second argument.
@@ -415,18 +420,22 @@ def dblquad(func, a, b, gfun, hfun, args=(), epsabs=1.49e-8, epsrel=1.49e-8):
     tplquad : triple integral
     fixed_quad : fixed-order Gaussian quadrature
     quadrature : adaptive Gaussian quadrature
-    odeint, ode : ODE integrators
-    simps, trapz, romb : integrators for sampled data
+    odeint : ODE integrator
+    ode : ODE integrator
+    simps : integrator for sampled data
+    romb : integrator for sampled data
     scipy.special : for coefficients and roots of orthogonal polynomials
 
     """
     return quad(_infunc,a,b,(func,gfun,hfun,args),epsabs=epsabs,epsrel=epsrel)
+
 
 def _infunc2(y,x,func,qfun,rfun,more_args):
     a2 = qfun(x,y)
     b2 = rfun(x,y)
     myargs = (y,x) + more_args
     return quad(func,a2,b2,args=myargs)[0]
+
 
 def tplquad(func, a, b, gfun, hfun, qfun, rfun, args=(), epsabs=1.49e-8,
             epsrel=1.49e-8):
@@ -476,7 +485,6 @@ def tplquad(func, a, b, gfun, hfun, qfun, rfun, args=(), epsabs=1.49e-8,
     fixed_quad: Fixed-order Gaussian quadrature
     dblquad: Double integrals
     romb: Integrators for sampled data
-    trapz: Integrators for sampled data
     simps: Integrators for sampled data
     ode: ODE integrators
     odeint: ODE integrators

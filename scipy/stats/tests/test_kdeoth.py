@@ -1,7 +1,9 @@
+from __future__ import division, print_function, absolute_import
+
 from scipy import stats
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_, assert_raises, \
-    assert_array_almost_equal, assert_array_almost_equal_nulp
+    assert_array_almost_equal, assert_array_almost_equal_nulp, run_module_suite
 
 
 def test_kde_1d():
@@ -72,10 +74,12 @@ class _kde_subclass1(stats.gaussian_kde):
         self.covariance_factor = self.scotts_factor
         self._compute_covariance()
 
+
 class _kde_subclass2(stats.gaussian_kde):
     def __init__(self, dataset):
         self.covariance_factor = self.scotts_factor
         super(_kde_subclass2, self).__init__(dataset)
+
 
 class _kde_subclass3(stats.gaussian_kde):
     def __init__(self, dataset, covariance):
@@ -87,9 +91,11 @@ class _kde_subclass3(stats.gaussian_kde):
         self._norm_factor = np.sqrt(np.linalg.det(2*np.pi * self.covariance)) \
                                    * self.n
 
+
 class _kde_subclass4(stats.gaussian_kde):
     def covariance_factor(self):
         return 0.5 * self.silverman_factor()
+
 
 def test_gaussian_kde_subclassing():
     x1 = np.array([-7, -5, 1, 4, 5], dtype=np.float)
@@ -173,3 +179,6 @@ def test_kde_integer_input():
     y_expected = [0.13480721, 0.18222869, 0.19514935, 0.18222869, 0.13480721]
     assert_array_almost_equal(kde(x1), y_expected, decimal=6)
 
+
+if __name__ == "__main__":
+    run_module_suite()

@@ -104,7 +104,8 @@ change is made.
 
 * scipy.linalg
 
-* scipy.maxentropy
+  - scipy.linalg.blas
+  - scipy.linalg.lapack
 
 * scipy.misc
 
@@ -119,6 +120,7 @@ change is made.
 * scipy.sparse
 
   - linalg
+  - csgraph
 
 * scipy.spatial
 

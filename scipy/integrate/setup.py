@@ -1,6 +1,8 @@
 #!/usr/bin/env python
+from __future__ import division, print_function, absolute_import
 
 from os.path import join
+
 
 def configuration(parent_package='',top_path=None):
     from numpy.distutils.misc_util import Configuration
@@ -24,8 +26,6 @@ def configuration(parent_package='',top_path=None):
     # LAPACK routines?
     # Yes, someday...
 
-
-
     # Extensions
     # quadpack:
 
@@ -36,12 +36,11 @@ def configuration(parent_package='',top_path=None):
     # odepack
     libs = ['odepack','linpack_lite','mach']
 
-
     # Remove libraries key from blas_opt
     if 'libraries' in blas_opt:    # key doesn't exist on OS X ...
         libs.extend(blas_opt['libraries'])
     newblas = {}
-    for key in blas_opt.keys():
+    for key in blas_opt:
         if key == 'libraries':
             continue
         newblas[key] = blas_opt[key]
@@ -54,6 +53,12 @@ def configuration(parent_package='',top_path=None):
     # vode
     config.add_extension('vode',
                          sources=['vode.pyf'],
+                         libraries=libs,
+                         **newblas)
+
+    # lsoda
+    config.add_extension('lsoda',
+                         sources=['lsoda.pyf'],
                          libraries=libs,
                          **newblas)
 

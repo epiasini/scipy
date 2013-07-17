@@ -17,6 +17,8 @@ SciPy Tutorial
    signal
    linalg
    arpack
+   csgraph
+   spatial
    stats
    ndimage
    io

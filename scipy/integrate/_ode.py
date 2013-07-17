@@ -37,6 +37,8 @@ f, y and Jacobians by transparently translating them into the equivalent
 real valued system. It supports the real valued solvers (i.e not zvode) and is
 an alternative to ode with the zvode solver, sometimes performing better.
 """
+from __future__ import division, print_function, absolute_import
+
 
 # XXX: Integrators must have:
 # ===========================
@@ -88,8 +90,9 @@ import warnings
 
 from numpy import asarray, array, zeros, int32, isscalar, real, imag
 
-import vode as _vode
-import _dop
+from . import vode as _vode
+from . import _dop
+from . import lsoda as _lsoda
 
 
 #------------------------------------------------------------------------------
@@ -98,201 +101,249 @@ import _dop
 
 
 class ode(object):
-    """\
-A generic interface class to numeric integrators.
+    """
+    A generic interface class to numeric integrators.
 
-Solve an equation system :math:`y'(t) = f(t,y)` with (optional) ``jac = df/dy``.
+    Solve an equation system :math:`y'(t) = f(t,y)` with (optional) ``jac = df/dy``.
 
-Parameters
-----------
-f : callable f(t, y, *f_args)
-    Rhs of the equation. t is a scalar, y.shape == (n,).
-    f_args is set by calling set_f_params(*args)
-jac : callable jac(t, y, *jac_args)
-    Jacobian of the rhs, jac[i,j] = d f[i] / d y[j]
-    jac_args is set by calling set_f_params(*args)
+    Parameters
+    ----------
+    f : callable ``f(t, y, *f_args)``
+        Rhs of the equation. t is a scalar, ``y.shape == (n,)``.
+        ``f_args`` is set by calling ``set_f_params(*args)``.
+        `f` should return a scalar, array or list (not a tuple).
+    jac : callable ``jac(t, y, *jac_args)``
+        Jacobian of the rhs, ``jac[i,j] = d f[i] / d y[j]``.
+        ``jac_args`` is set by calling ``set_f_params(*args)``.
 
-Attributes
-----------
-t : float
-    Current time
-y : ndarray
-    Current variable values
+    Attributes
+    ----------
+    t : float
+        Current time.
+    y : ndarray
+        Current variable values.
 
-See also
---------
-odeint : an integrator with a simpler interface based on lsoda from ODEPACK
-quad : for finding the area under a curve
+    See also
+    --------
+    odeint : an integrator with a simpler interface based on lsoda from ODEPACK
+    quad : for finding the area under a curve
 
-Notes
------
+    Notes
+    -----
+    Available integrators are listed below. They can be selected using
+    the `set_integrator` method.
 
-Available integrators are listed below. They can be selected using
-the `set_integrator` method.
+    "vode"
 
-"vode"
+        Real-valued Variable-coefficient Ordinary Differential Equation
+        solver, with fixed-leading-coefficient implementation. It provides
+        implicit Adams method (for non-stiff problems) and a method based on
+        backward differentiation formulas (BDF) (for stiff problems).
 
-    Real-valued Variable-coefficient Ordinary Differential Equation
-    solver, with fixed-leading-coefficient implementation. It provides
-    implicit Adams method (for non-stiff problems) and a method based on
-    backward differentiation formulas (BDF) (for stiff problems).
+        Source: http://www.netlib.org/ode/vode.f
 
-    Source: http://www.netlib.org/ode/vode.f
+        .. warning::
 
-    .. warning::
+           This integrator is not re-entrant. You cannot have two `ode`
+           instances using the "vode" integrator at the same time.
 
-       This integrator is not re-entrant. You cannot have two `ode`
-       instances using the "vode" integrator at the same time.
+        This integrator accepts the following parameters in `set_integrator`
+        method of the `ode` class:
 
-    This integrator accepts the following parameters in `set_integrator`
-    method of the `ode` class:
+        - atol : float or sequence
+          absolute tolerance for solution
+        - rtol : float or sequence
+          relative tolerance for solution
+        - lband : None or int
+        - rband : None or int
+          Jacobian band width, jac[i,j] != 0 for i-lband <= j <= i+rband.
+          Setting these requires your jac routine to return the jacobian
+          in packed format, jac_packed[i-j+lband, j] = jac[i,j].
+        - method: 'adams' or 'bdf'
+          Which solver to use, Adams (non-stiff) or BDF (stiff)
+        - with_jacobian : bool
+          Whether to use the jacobian
+        - nsteps : int
+          Maximum number of (internally defined) steps allowed during one
+          call to the solver.
+        - first_step : float
+        - min_step : float
+        - max_step : float
+          Limits for the step sizes used by the integrator.
+        - order : int
+          Maximum order used by the integrator,
+          order <= 12 for Adams, <= 5 for BDF.
 
-    - atol : float or sequence
-      absolute tolerance for solution
-    - rtol : float or sequence
-      relative tolerance for solution
-    - lband : None or int
-    - rband : None or int
-      Jacobian band width, jac[i,j] != 0 for i-lband <= j <= i+rband.
-      Setting these requires your jac routine to return the jacobian
-      in packed format, jac_packed[i-j+lband, j] = jac[i,j].
-    - method: 'adams' or 'bdf'
-      Which solver to use, Adams (non-stiff) or BDF (stiff)
-    - with_jacobian : bool
-      Whether to use the jacobian
-    - nsteps : int
-      Maximum number of (internally defined) steps allowed during one
-      call to the solver.
-    - first_step : float
-    - min_step : float
-    - max_step : float
-      Limits for the step sizes used by the integrator.
-    - order : int
-      Maximum order used by the integrator,
-      order <= 12 for Adams, <= 5 for BDF.
+    "zvode"
 
-"zvode"
+        Complex-valued Variable-coefficient Ordinary Differential Equation
+        solver, with fixed-leading-coefficient implementation.  It provides
+        implicit Adams method (for non-stiff problems) and a method based on
+        backward differentiation formulas (BDF) (for stiff problems).
 
-    Complex-valued Variable-coefficient Ordinary Differential Equation
-    solver, with fixed-leading-coefficient implementation.  It provides
-    implicit Adams method (for non-stiff problems) and a method based on
-    backward differentiation formulas (BDF) (for stiff problems).
+        Source: http://www.netlib.org/ode/zvode.f
 
-    Source: http://www.netlib.org/ode/zvode.f
+        .. warning::
 
-    .. warning::
+           This integrator is not re-entrant. You cannot have two `ode`
+           instances using the "zvode" integrator at the same time.
 
-       This integrator is not re-entrant. You cannot have two `ode`
-       instances using the "zvode" integrator at the same time.
+        This integrator accepts the same parameters in `set_integrator`
+        as the "vode" solver.
 
-    This integrator accepts the same parameters in `set_integrator`
-    as the "vode" solver.
+        .. note::
 
-    .. note::
+            When using ZVODE for a stiff system, it should only be used for
+            the case in which the function f is analytic, that is, when each f(i)
+            is an analytic function of each y(j).  Analyticity means that the
+            partial derivative df(i)/dy(j) is a unique complex number, and this
+            fact is critical in the way ZVODE solves the dense or banded linear
+            systems that arise in the stiff case.  For a complex stiff ODE system
+            in which f is not analytic, ZVODE is likely to have convergence
+            failures, and for this problem one should instead use DVODE on the
+            equivalent real system (in the real and imaginary parts of y).
 
-        When using ZVODE for a stiff system, it should only be used for
-        the case in which the function f is analytic, that is, when each f(i)
-        is an analytic function of each y(j).  Analyticity means that the
-        partial derivative df(i)/dy(j) is a unique complex number, and this
-        fact is critical in the way ZVODE solves the dense or banded linear
-        systems that arise in the stiff case.  For a complex stiff ODE system
-        in which f is not analytic, ZVODE is likely to have convergence
-        failures, and for this problem one should instead use DVODE on the
-        equivalent real system (in the real and imaginary parts of y).
+    "lsoda"
 
-"dopri5"
+        Real-valued Variable-coefficient Ordinary Differential Equation
+        solver, with fixed-leading-coefficient implementation. It provides
+        automatic method switching between implicit Adams method (for non-stiff
+        problems) and a method based on backward differentiation formulas (BDF)
+        (for stiff problems).
 
-    This is an explicit runge-kutta method of order (4)5 due to Dormand &
-    Prince (with stepsize control and dense output).
+        Source: http://www.netlib.org/odepack
 
-    Authors:
+        .. warning::
 
-        E. Hairer and G. Wanner
-        Universite de Geneve, Dept. de Mathematiques
-        CH-1211 Geneve 24, Switzerland
-        e-mail:  ernst.hairer@math.unige.ch, gerhard.wanner@math.unige.ch
+           This integrator is not re-entrant. You cannot have two `ode`
+           instances using the "lsoda" integrator at the same time.
 
-    This code is described in [HNW93]_.
+        This integrator accepts the following parameters in `set_integrator`
+        method of the `ode` class:
 
-    This integrator accepts the following parameters in set_integrator()
-    method of the ode class:
+        - atol : float or sequence
+          absolute tolerance for solution
+        - rtol : float or sequence
+          relative tolerance for solution
+        - lband : None or int
+        - rband : None or int
+          Jacobian band width, jac[i,j] != 0 for i-lband <= j <= i+rband.
+          Setting these requires your jac routine to return the jacobian
+          in packed format, jac_packed[i-j+lband, j] = jac[i,j].
+        - with_jacobian : bool
+          Whether to use the jacobian
+        - nsteps : int
+          Maximum number of (internally defined) steps allowed during one
+          call to the solver.
+        - first_step : float
+        - min_step : float
+        - max_step : float
+          Limits for the step sizes used by the integrator.
+        - max_order_ns : int
+          Maximum order used in the nonstiff case (default 12).
+        - max_order_s : int
+          Maximum order used in the stiff case (default 5).
+        - max_hnil : int
+          Maximum number of messages reporting too small step size (t + h = t)
+          (default 0)
+        - ixpr : int
+          Whether to generate extra printing at method switches (default False).
 
-    - atol : float or sequence
-      absolute tolerance for solution
-    - rtol : float or sequence
-      relative tolerance for solution
-    - nsteps : int
-      Maximum number of (internally defined) steps allowed during one
-      call to the solver.
-    - first_step : float
-    - max_step : float
-    - safety : float
-      Safety factor on new step selection (default 0.9)
-    - ifactor : float
-    - dfactor : float
-      Maximum factor to increase/decrease step size by in one step
-    - beta : float
-      Beta parameter for stabilised step size control.
+    "dopri5"
 
-"dop853"
+        This is an explicit runge-kutta method of order (4)5 due to Dormand &
+        Prince (with stepsize control and dense output).
 
-    This is an explicit runge-kutta method of order 8(5,3) due to Dormand
-    & Prince (with stepsize control and dense output).
+        Authors:
 
-    Options and references the same as "dopri5".
+            E. Hairer and G. Wanner
+            Universite de Geneve, Dept. de Mathematiques
+            CH-1211 Geneve 24, Switzerland
+            e-mail:  ernst.hairer@math.unige.ch, gerhard.wanner@math.unige.ch
 
-Examples
---------
+        This code is described in [HNW93]_.
 
-A problem to integrate and the corresponding jacobian:
+        This integrator accepts the following parameters in set_integrator()
+        method of the ode class:
 
->>> from scipy.integrate import ode
->>>
->>> y0, t0 = [1.0j, 2.0], 0
->>>
->>> def f(t, y, arg1):
->>>     return [1j*arg1*y[0] + y[1], -arg1*y[1]**2]
->>> def jac(t, y, arg1):
->>>     return [[1j*arg1, 1], [0, -arg1*2*y[1]]]
+        - atol : float or sequence
+          absolute tolerance for solution
+        - rtol : float or sequence
+          relative tolerance for solution
+        - nsteps : int
+          Maximum number of (internally defined) steps allowed during one
+          call to the solver.
+        - first_step : float
+        - max_step : float
+        - safety : float
+          Safety factor on new step selection (default 0.9)
+        - ifactor : float
+        - dfactor : float
+          Maximum factor to increase/decrease step size by in one step
+        - beta : float
+          Beta parameter for stabilised step size control.
 
-The integration:
+    "dop853"
 
->>> r = ode(f, jac).set_integrator('zvode', method='bdf', with_jacobian=True)
->>> r.set_initial_value(y0, t0).set_f_params(2.0).set_jac_params(2.0)
->>> t1 = 10
->>> dt = 1
->>> while r.successful() and r.t < t1:
->>>     r.integrate(r.t+dt)
->>>     print r.t, r.y
+        This is an explicit runge-kutta method of order 8(5,3) due to Dormand
+        & Prince (with stepsize control and dense output).
 
-References
-----------
+        Options and references the same as "dopri5".
 
-.. [HNW93] E. Hairer, S.P. Norsett and G. Wanner, Solving Ordinary
-    Differential Equations i. Nonstiff Problems. 2nd edition.
-    Springer Series in Computational Mathematics,
-    Springer-Verlag (1993)
+    Examples
+    --------
 
-"""
+    A problem to integrate and the corresponding jacobian:
 
+    >>> from scipy.integrate import ode
+    >>>
+    >>> y0, t0 = [1.0j, 2.0], 0
+    >>>
+    >>> def f(t, y, arg1):
+    >>>     return [1j*arg1*y[0] + y[1], -arg1*y[1]**2]
+    >>> def jac(t, y, arg1):
+    >>>     return [[1j*arg1, 1], [0, -arg1*2*y[1]]]
+
+    The integration:
+
+    >>> r = ode(f, jac).set_integrator('zvode', method='bdf', with_jacobian=True)
+    >>> r.set_initial_value(y0, t0).set_f_params(2.0).set_jac_params(2.0)
+    >>> t1 = 10
+    >>> dt = 1
+    >>> while r.successful() and r.t < t1:
+    >>>     r.integrate(r.t+dt)
+    >>>     print("%g %g" % (r.t, r.y))
+
+    References
+    ----------
+    .. [HNW93] E. Hairer, S.P. Norsett and G. Wanner, Solving Ordinary
+        Differential Equations i. Nonstiff Problems. 2nd edition.
+        Springer Series in Computational Mathematics,
+        Springer-Verlag (1993)
+
+    """
     def __init__(self, f, jac=None):
         self.stiff = 0
         self.f = f
         self.jac = jac
         self.f_params = ()
         self.jac_params = ()
-        self.y = []
+        self._y = []
+
+    @property
+    def y(self):
+        return self._y
 
     def set_initial_value(self, y, t=0.0):
         """Set initial conditions y(t) = y."""
         if isscalar(y):
             y = [y]
-        n_prev = len(self.y)
+        n_prev = len(self._y)
         if not n_prev:
             self.set_integrator('')  # find first available integrator
-        self.y = asarray(y, self._integrator.scalar)
+        self._y = asarray(y, self._integrator.scalar)
         self.t = t
-        self._integrator.reset(len(self.y), self.jac is not None)
+        self._integrator.reset(len(self._y), self.jac is not None)
         return self
 
     def set_integrator(self, name, **integrator_params):
@@ -314,10 +365,10 @@ References
                 'available.' % name)
         else:
             self._integrator = integrator(**integrator_params)
-            if not len(self.y):
+            if not len(self._y):
                 self.t = 0.0
-                self.y = array([0.0], self._integrator.scalar)
-            self._integrator.reset(len(self.y), self.jac is not None)
+                self._y = array([0.0], self._integrator.scalar)
+            self._integrator.reset(len(self._y), self.jac is not None)
         return self
 
     def integrate(self, t, step=0, relax=0):
@@ -328,10 +379,16 @@ References
             mth = self._integrator.run_relax
         else:
             mth = self._integrator.run
-        self.y, self.t = mth(self.f, self.jac or (lambda: None),
-                            self.y, self.t, t,
-                            self.f_params, self.jac_params)
-        return self.y
+
+        try:
+            self._y, self.t = mth(self.f, self.jac or (lambda: None),
+                                self._y, self.t, t,
+                                self.f_params, self.jac_params)
+        except SystemError:
+            # f2py issue with tuple returns, see ticket 1187.
+            raise ValueError('Function to integrate must not return a tuple.')
+
+        return self._y
 
     def successful(self):
         """Check if integration was successful."""
@@ -361,19 +418,19 @@ class complex_ode(ode):
 
     Parameters
     ----------
-    f : callable f(t, y, *f_args)
-        Rhs of the equation. t is a scalar, y.shape == (n,).
-        f_args is set by calling set_f_params(*args)
-    jac : jac(t, y, *jac_args)
-        Jacobian of the rhs, jac[i,j] = d f[i] / d y[j]
-        jac_args is set by calling set_f_params(*args)
+    f : callable ``f(t, y, *f_args)``
+        Rhs of the equation. t is a scalar, ``y.shape == (n,)``.
+        ``f_args`` is set by calling ``set_f_params(*args)``.
+    jac : callable ``jac(t, y, *jac_args)``
+        Jacobian of the rhs, ``jac[i,j] = d f[i] / d y[j]``.
+        ``jac_args`` is set by calling ``set_f_params(*args)``.
 
     Attributes
     ----------
     t : float
-        Current time
+        Current time.
     y : ndarray
-        Current variable values
+        Current variable values.
 
     Examples
     --------
@@ -401,6 +458,10 @@ class complex_ode(ode):
         self.jac_tmp[1::2, ::2] = imag(jac)
         self.jac_tmp[::2, 1::2] = -self.jac_tmp[1::2, ::2]
         return self.jac_tmp
+
+    @property
+    def y(self):
+        return self._y[::2] + 1j * self._y[1::2]
 
     def set_integrator(self, name, **integrator_params):
         """
@@ -443,6 +504,7 @@ def find_integrator(name):
             return cl
     return None
 
+
 class IntegratorConcurrencyError(RuntimeError):
     """
     Failure due to concurrent usage of an integrator that can be used
@@ -455,6 +517,7 @@ class IntegratorConcurrencyError(RuntimeError):
                "consider using a different integrator "
                "(see `ode.set_integrator`)") % name
         RuntimeError.__init__(self, msg)
+
 
 class IntegratorBase(object):
 
@@ -782,7 +845,7 @@ class dopri5(IntegratorBase):
                 -2: 'larger nmax is needed',
                 -3: 'step size becomes too small',
                 -4: 'problem is probably stiff (interrupted)',
-               }
+                }
 
     def __init__(self,
                  rtol=1e-6, atol=1e-12,
@@ -886,3 +949,138 @@ class dop853(dopri5):
 
 if dop853.runner is not None:
     IntegratorBase.integrator_classes.append(dop853)
+
+
+class lsoda(IntegratorBase):
+
+    runner = getattr(_lsoda, 'lsoda', None)
+    active_global_handle = 0
+
+    messages = {
+        2: "Integration successful.",
+        -1: "Excess work done on this call (perhaps wrong Dfun type).",
+        -2: "Excess accuracy requested (tolerances too small).",
+        -3: "Illegal input detected (internal error).",
+        -4: "Repeated error test failures (internal error).",
+        -5: "Repeated convergence failures (perhaps bad Jacobian or tolerances).",
+        -6: "Error weight became zero during problem.",
+        -7: "Internal workspace insufficient to finish (internal error)."
+    }
+
+    def __init__(self,
+                 with_jacobian=0,
+                 rtol=1e-6, atol=1e-12,
+                 lband=None, uband=None,
+                 nsteps=500,
+                 max_step=0.0,  # corresponds to infinite
+                 min_step=0.0,
+                 first_step=0.0,  # determined by solver
+                 ixpr=0,
+                 max_hnil=0,
+                 max_order_ns=12,
+                 max_order_s=5,
+                 method=None
+                 ):
+
+        self.with_jacobian = with_jacobian
+        self.rtol = rtol
+        self.atol = atol
+        self.mu = uband
+        self.ml = lband
+
+        self.max_order_ns = max_order_ns
+        self.max_order_s = max_order_s
+        self.nsteps = nsteps
+        self.max_step = max_step
+        self.min_step = min_step
+        self.first_step = first_step
+        self.ixpr = ixpr
+        self.max_hnil = max_hnil
+        self.success = 1
+
+        self.initialized = False
+
+    def reset(self, n, has_jac):
+        # Calculate parameters for Fortran subroutine dvode.
+        if has_jac:
+            if self.mu is None and self.ml is None:
+                jt = 1
+            else:
+                if self.mu is None:
+                    self.mu = 0
+                if self.ml is None:
+                    self.ml = 0
+                jt = 4
+        else:
+            if self.mu is None and self.ml is None:
+                jt = 2
+            else:
+                if self.mu is None:
+                    self.mu = 0
+                if self.ml is None:
+                    self.ml = 0
+                jt = 5
+        lrn = 20 + (self.max_order_ns + 4) * n
+        if jt in [1, 2]:
+            lrs = 22 + (self.max_order_s + 4) * n + n * n
+        elif jt in [4, 5]:
+            lrs = 22 + (self.max_order_s + 5 + 2 * self.ml + self.mu) * n
+        else:
+            raise ValueError('Unexpected jt=%s' % jt)
+        lrw = max(lrn, lrs)
+        liw = 20 + n
+        rwork = zeros((lrw,), float)
+        rwork[4] = self.first_step
+        rwork[5] = self.max_step
+        rwork[6] = self.min_step
+        self.rwork = rwork
+        iwork = zeros((liw,), int32)
+        if self.ml is not None:
+            iwork[0] = self.ml
+        if self.mu is not None:
+            iwork[1] = self.mu
+        iwork[4] = self.ixpr
+        iwork[5] = self.nsteps
+        iwork[6] = self.max_hnil
+        iwork[7] = self.max_order_ns
+        iwork[8] = self.max_order_s
+        self.iwork = iwork
+        self.call_args = [self.rtol, self.atol, 1, 1,
+                          self.rwork, self.iwork, jt]
+        self.success = 1
+        self.initialized = False
+
+    def run(self, f,jac,y0,t0,t1,f_params,jac_params):
+        if self.initialized:
+            self.check_handle()
+        else:
+            self.initialized = True
+            self.acquire_new_handle()
+        args = [f, y0, t0, t1] + self.call_args[:-1] + \
+               [jac, self.call_args[-1], f_params, 0, jac_params]
+        y1, t, istate = self.runner(*args)
+        if istate < 0:
+            warnings.warn('lsoda: ' +
+                          self.messages.get(istate,
+                                            'Unexpected istate=%s' % istate))
+            self.success = 0
+        else:
+            self.call_args[3] = 2  # upgrade istate from 1 to 2
+        return y1, t
+
+    def step(self, *args):
+        itask = self.call_args[2]
+        self.call_args[2] = 2
+        r = self.run(*args)
+        self.call_args[2] = itask
+        return r
+
+    def run_relax(self, *args):
+        itask = self.call_args[2]
+        self.call_args[2] = 3
+        r = self.run(*args)
+        self.call_args[2] = itask
+        return r
+
+if lsoda.runner:
+    IntegratorBase.integrator_classes.append(lsoda)

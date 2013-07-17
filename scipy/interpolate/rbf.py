@@ -42,11 +42,15 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
+from __future__ import division, print_function, absolute_import
+
 import sys
 
 from numpy import (sqrt, log, asarray, newaxis, all, dot, exp, eye,
                    float_)
 from scipy import linalg
+from scipy.lib.six import callable, get_method_function, \
+     get_function_code
 
 __all__ = ['Rbf']
 
@@ -107,23 +111,29 @@ class Rbf(object):
     """
 
     def _euclidean_norm(self, x1, x2):
-        return sqrt( ((x1 - x2)**2).sum(axis=0) )
+        return sqrt(((x1 - x2)**2).sum(axis=0))
 
     def _h_multiquadric(self, r):
         return sqrt((1.0/self.epsilon*r)**2 + 1)
+
     def _h_inverse_multiquadric(self, r):
         return 1.0/sqrt((1.0/self.epsilon*r)**2 + 1)
+
     def _h_gaussian(self, r):
         return exp(-(1.0/self.epsilon*r)**2)
+
     def _h_linear(self, r):
         return r
+
     def _h_cubic(self, r):
         return r**3
+
     def _h_quintic(self, r):
         return r**5
+
     def _h_thin_plate(self, r):
         result = r**2 * log(r)
-        result[r == 0] = 0 # the spline is zero at zero
+        result[r == 0] = 0  # the spline is zero at zero
         return result
 
     # Setup self._function and do smoke test on initial r
@@ -151,13 +161,13 @@ class Rbf(object):
                 val = self.function
                 allow_one = True
             elif hasattr(self.function, "im_func"):
-                val = self.function.im_func
+                val = get_method_function(self.function)
             elif hasattr(self.function, "__call__"):
-                val = self.function.__call__.im_func
+                val = get_method_function(self.function.__call__)
             else:
                 raise ValueError("Cannot determine number of arguments to function")
 
-            argcount = val.func_code.co_argcount
+            argcount = get_function_code(val).co_argcount
             if allow_one and argcount == 1:
                 self._function = self.function
             elif argcount == 2:
@@ -181,12 +191,14 @@ class Rbf(object):
         self.N = self.xi.shape[-1]
         self.di = asarray(args[-1]).flatten()
 
-        if not all([x.size==self.di.size for x in self.xi]):
+        if not all([x.size == self.di.size for x in self.xi]):
             raise ValueError("All arrays must be equal length.")
 
         self.norm = kwargs.pop('norm', self._euclidean_norm)
         r = self._call_norm(self.xi, self.xi)
-        self.epsilon = kwargs.pop('epsilon', r.mean())
+        self.epsilon = kwargs.pop('epsilon', None)
+        if self.epsilon is None:
+            self.epsilon = r.mean()
         self.smooth = kwargs.pop('smooth', 0.0)
 
         self.function = kwargs.pop('function', 'multiquadric')

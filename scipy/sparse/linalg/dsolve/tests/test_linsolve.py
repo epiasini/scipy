@@ -1,3 +1,5 @@
+from __future__ import division, print_function, absolute_import
+
 import warnings
 
 from numpy import array, finfo, arange, eye, all, unique, ones, dot, matrix
@@ -5,18 +7,20 @@ import numpy.random as random
 from numpy.testing import TestCase, run_module_suite, assert_array_almost_equal, \
     assert_raises, assert_almost_equal, assert_equal, assert_array_equal, assert_
 
+import scipy.linalg
 from scipy.linalg import norm, inv
-from scipy.sparse import spdiags, SparseEfficiencyWarning, csc_matrix
+from scipy.sparse import spdiags, SparseEfficiencyWarning, csc_matrix, csr_matrix
 from scipy.sparse.linalg.dsolve import spsolve, use_solver, splu, spilu
 
 warnings.simplefilter('ignore',SparseEfficiencyWarning)
 
-#TODO add more comprehensive tests
-use_solver( useUmfpack = False )
+# TODO add more comprehensive tests
+use_solver(useUmfpack=False)
+
 
 class TestLinsolve(TestCase):
     def test_singular(self):
-        A = csc_matrix( (5,5), dtype='d' )
+        A = csc_matrix((5,5), dtype='d')
         b = array([1, 2, 3, 4, 5],dtype='d')
         x = spsolve(A, b, use_umfpack=False)
 
@@ -27,9 +31,8 @@ class TestLinsolve(TestCase):
         # condition number of A
         cond_A = norm(A.todense(),2) * norm(inv(A.todense()),2)
 
-
         for t in ['f','d','F','D']:
-            eps = finfo(t).eps #floating point epsilon
+            eps = finfo(t).eps  # floating point epsilon
             b = b.astype(t)
 
             for format in ['csc','csr']:
@@ -37,19 +40,31 @@ class TestLinsolve(TestCase):
 
                 x = spsolve(Asp,b)
 
-                assert_( norm(b - Asp*x) < 10 * cond_A * eps )
+                assert_(norm(b - Asp*x) < 10 * cond_A * eps)
 
-    def test_smoketest(self):
-        Adense = matrix([[ 0.,  1.,  1.],
-                         [ 1.,  0.,  1.],
-                         [ 0.,  0.,  1.]])
-        As =  csc_matrix(Adense)
+    def test_bvector_smoketest(self):
+        Adense = matrix([[0., 1., 1.],
+                         [1., 0., 1.],
+                         [0., 0., 1.]])
+        As = csc_matrix(Adense)
         random.seed(1234)
         x = random.randn(3)
         b = As*x
         x2 = spsolve(As, b)
 
         assert_array_almost_equal(x, x2)
+
+    def test_bmatrix_smoketest(self):
+        Adense = matrix([[0., 1., 1.],
+                         [1., 0., 1.],
+                         [0., 0., 1.]])
+        As = csc_matrix(Adense)
+        random.seed(1234)
+        x = random.randn(3, 4)
+        Bdense = As.dot(x)
+        Bs = csc_matrix(Bdense)
+        x2 = spsolve(As, Bs)
+        assert_array_almost_equal(x, x2.todense())
 
     def test_non_square(self):
         # A is not square.
@@ -60,6 +75,25 @@ class TestLinsolve(TestCase):
         A2 = csc_matrix(eye(3))
         b2 = array([1.0, 2.0])
         assert_raises(ValueError, spsolve, A2, b2)
+
+    def test_example_comparison(self):
+        row = array([0,0,1,2,2,2])
+        col = array([0,2,2,0,1,2])
+        data = array([1,2,3,-4,5,6])
+        sM = csr_matrix((data,(row,col)), shape=(3,3), dtype=float)
+        M = sM.todense()
+
+        row = array([0,0,1,1,0,0])
+        col = array([0,2,1,1,0,0])
+        data = array([1,1,1,1,1,1])
+        sN = csr_matrix((data, (row,col)), shape=(3,3), dtype=float)
+        N = sN.todense()
+
+        sX = spsolve(sM, sN)
+        X = scipy.linalg.solve(M, N)
+
+        assert_array_almost_equal(X, sX.todense())
+
 
 class TestSplu(object):
     def setUp(self):
@@ -85,11 +119,11 @@ class TestSplu(object):
         assert_(abs(x - r).max() > 1e-5)
 
     def test_splu_nnz0(self):
-        A = csc_matrix( (5,5), dtype='d' )
+        A = csc_matrix((5,5), dtype='d')
         assert_raises(RuntimeError, splu, A)
 
     def test_spilu_nnz0(self):
-        A = csc_matrix( (5,5), dtype='d' )
+        A = csc_matrix((5,5), dtype='d')
         assert_raises(RuntimeError, spilu, A)
 
     def test_splu_basic(self):
@@ -144,10 +178,11 @@ class TestSplu(object):
         lu = splu(a_)
 
         # And now test that we don't have a refcount bug
-        import gc, sys
+        import gc
+        import sys
         rc = sys.getrefcount(lu)
         for attr in ('perm_r', 'perm_c'):
-            perm =  getattr(lu, attr)
+            perm = getattr(lu, attr)
             assert_equal(sys.getrefcount(lu), rc + 1)
             del perm
             assert_equal(sys.getrefcount(lu), rc)

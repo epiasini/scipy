@@ -8,7 +8,13 @@
 #ifndef __SUPERLU_OBJECT
 #define __SUPERLU_OBJECT
 
-#include "Python.h"
+#include <Python.h>
+
+/* Undef a macro from Python which conflicts with superlu */
+#ifdef c_abs
+#undef c_abs
+#endif
+
 #include "SuperLU/SRC/slu_zdefs.h"
 #include "numpy/arrayobject.h"
 #include "SuperLU/SRC/slu_util.h"
@@ -43,6 +49,12 @@ PyObject *newSciPyLUObject(SuperMatrix *, PyObject*, int, int);
 int set_superlu_options_from_dict(superlu_options_t *options,
                                   int ilu, PyObject *option_dict,
                                   int *panel_size, int *relax);
+
+void XDestroy_SuperMatrix_Store(SuperMatrix *);
+void XDestroy_SuperNode_Matrix(SuperMatrix *);
+void XDestroy_CompCol_Matrix(SuperMatrix *);
+void XDestroy_CompCol_Permuted(SuperMatrix *);
+void XStatFree(SuperLUStat_t *);
 
 /*
  * Definitions for other SuperLU data types than Z,

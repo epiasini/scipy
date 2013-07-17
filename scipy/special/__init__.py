@@ -131,7 +131,7 @@ Integrals of Bessel Functions
    it2j0y0    -- Integrals of (1-j0(t))/t from 0 to x and y0(t)/t from x to inf.
    iti0k0     -- Basic integrals of i0 and k0 from 0 to x.
    it2i0k0    -- Integrals of (i0(t)-1)/t from 0 to x and k0(t)/t from x to inf.
-   besselpoly -- Integral of a bessel function: Jv(2* a* x) * x[+]lambda from x=0 to 1.
+   besselpoly -- Integral of a Bessel function: Jv(2* a* x) * x[+]lambda from x=0 to 1.
 
 Derivatives of Bessel Functions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -179,7 +179,7 @@ Struve Functions
    :toctree: generated/
 
    struve       -- Struve function --- Hv(x)
-   modstruve    -- Modified struve function --- Lv(x)
+   modstruve    -- Modified Struve function --- Lv(x)
    itstruve0    -- Integral of H0(t) from 0 to x
    it2struve0   -- Integral of H0(t)/t from x to Inf.
    itmodstruve0 -- Integral of L0(t) from 0 to x.
@@ -203,9 +203,9 @@ Raw Statistical Functions
    fdtri      -- Inverse of fdtrc
    gdtr       -- Integral from 0 to x of gamma pdf.
    gdtrc      -- Integral from x to infinity under gamma pdf.
-   gdtria     --
-   gdtrib     --
-   gdtrix     --
+   gdtria     -- Inverse with respect to `a` of gdtr.
+   gdtrib     -- Inverse with respect to `b` of gdtr.
+   gdtrix     -- Inverse with respect to `x` of gdtr.
    nbdtr      -- Sum of terms 0 through k of the negative binomial pdf.
    nbdtrc     -- Sum of terms k+1 to infinity under negative binomial pdf.
    nbdtri     -- Inverse of nbdtr
@@ -236,6 +236,7 @@ Gamma and Related Functions
 
    gamma        -- Gamma function.
    gammaln      -- Log of the absolute value of the gamma function.
+   gammasgn     -- Sign of the gamma function.
    gammainc     -- Incomplete gamma integral.
    gammaincinv  -- Inverse of gammainc.
    gammaincc    -- Complemented incomplete gamma integral.
@@ -258,8 +259,12 @@ Error Function and Fresnel Integrals
 
    erf           -- Error function.
    erfc          -- Complemented error function (1- erf(x))
+   erfcx         -- Scaled complemented error function exp(x**2)*erfc(x)
+   erfi          -- Imaginary error function, -i erf(i x)
    erfinv        -- Inverse of error function
    erfcinv       -- Inverse of erfc
+   wofz          -- Fadeeva function.
+   dawsn         -- Dawson's integral.
    fresnel       -- Fresnel sine and cosine integrals.
    fresnel_zeros -- Complex zeros of both Fresnel integrals
    modfresnelp   -- Modified Fresnel integrals F_+(x) and K_+(x)
@@ -270,9 +275,9 @@ These are not universal functions:
 .. autosummary::
    :toctree: generated/
 
-   erf_zeros     -- [+]Complex zeros of erf(z)
-   fresnelc_zeros -- [+]Complex zeros of fresnel cosine integrals
-   fresnels_zeros -- [+]Complex zeros of fresnel sine integrals
+   erf_zeros      -- [+]Complex zeros of erf(z)
+   fresnelc_zeros -- [+]Complex zeros of Fresnel cosine integrals
+   fresnels_zeros -- [+]Complex zeros of Fresnel sine integrals
 
 Legendre Functions
 ------------------
@@ -410,12 +415,12 @@ The following return both function and first derivative:
 .. autosummary::
    :toctree: generated/
 
-   mathieu_cem     -- Even mathieu function
-   mathieu_sem     -- Odd mathieu function
-   mathieu_modcem1 -- Even modified mathieu function of the first kind
-   mathieu_modcem2 -- Even modified mathieu function of the second kind
-   mathieu_modsem1 -- Odd modified mathieu function of the first kind
-   mathieu_modsem2 -- Odd modified mathieu function of the second kind
+   mathieu_cem     -- Even Mathieu function
+   mathieu_sem     -- Odd Mathieu function
+   mathieu_modcem1 -- Even modified Mathieu function of the first kind
+   mathieu_modcem2 -- Even modified Mathieu function of the second kind
+   mathieu_modsem1 -- Odd modified Mathieu function of the first kind
+   mathieu_modsem2 -- Odd modified Mathieu function of the second kind
 
 Spheroidal Wave Functions
 -------------------------
@@ -426,7 +431,7 @@ Spheroidal Wave Functions
    pro_ang1   -- Prolate spheroidal angular function of the first kind
    pro_rad1   -- Prolate spheroidal radial function of the first kind
    pro_rad2   -- Prolate spheroidal radial function of the second kind
-   obl_ang1   -- Oblate spheroidal angluar function of the first kind
+   obl_ang1   -- Oblate spheroidal angular function of the first kind
    obl_rad1   -- Oblate spheroidal radial function of the first kind
    obl_rad2   -- Oblate spheroidal radial function of the second kind
    pro_cv     -- Compute characteristic value for prolate functions
@@ -442,7 +447,7 @@ The following functions require pre-computed characteristic value:
    pro_ang1_cv -- Prolate spheroidal angular function of the first kind
    pro_rad1_cv -- Prolate spheroidal radial function of the first kind
    pro_rad2_cv -- Prolate spheroidal radial function of the second kind
-   obl_ang1_cv -- Oblate spheroidal angluar function of the first kind
+   obl_ang1_cv -- Oblate spheroidal angular function of the first kind
    obl_rad1_cv -- Oblate spheroidal radial function of the first kind
    obl_rad2_cv -- Oblate spheroidal radial function of the second kind
 
@@ -483,11 +488,10 @@ Other Special Functions
 .. autosummary::
    :toctree: generated/
 
+   binom        -- Binomial coefficient.
    expn         -- Exponential integral.
    exp1         -- Exponential integral of order 1 (for complex argument)
    expi         -- Another exponential integral -- Ei(x)
-   wofz         -- Fadeeva function.
-   dawsn        -- Dawson's integral.
    shichi       -- Hyperbolic sine and cosine integrals.
    sici         -- Integral of the sinc and "cosinc" functions.
    spence       -- Dilogarithm integral.
@@ -513,6 +517,8 @@ Convenience Functions
    expm1    -- exp(x)-1
    cosm1    -- cos(x)-1
    round    -- round the argument to the nearest integer. If argument ends in 0.5 exactly, pick the nearest even integer.
+   xlogy    -- x*log(y)
+   xlog1py  -- x*log1p(y)
 
 .. [+] in the description indicates a function which is not a universal
 .. function and does not follow broadcasting and automatic
@@ -520,20 +526,18 @@ Convenience Functions
 
 """
 
-#from special_version import special_version as __version__
+from __future__ import division, print_function, absolute_import
 
-from _cephes import *
+from ._ufuncs import *
 
-from basic import *
-import specfun
-import orthogonal
-from orthogonal import *
-from spfun_stats import multigammaln
-from lambertw import lambertw
-from _logit import logit, expit
-import add_newdocs
+from .basic import *
+from . import specfun
+from . import orthogonal
+from .orthogonal import *
+from .spfun_stats import multigammaln
+from .lambertw import lambertw
 
-__all__ = filter(lambda s:not s.startswith('_'),dir())
+__all__ = [s for s in dir() if not s.startswith('_')]
 
 from numpy.dual import register_func
 register_func('i0',i0)

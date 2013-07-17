@@ -1,9 +1,11 @@
 """
 Functions for identifying peaks in signals.
 """
+from __future__ import division, print_function, absolute_import
 
 import numpy as np
 
+from scipy.lib.six.moves import xrange
 from scipy.signal.wavelets import cwt, ricker
 from scipy.stats import scoreatpercentile
 
@@ -14,43 +16,42 @@ def _boolrelextrema(data, comparator,
     Calculate the relative extrema of `data`.
 
     Relative extrema are calculated by finding locations where
-    comparator(data[n],data[n+1:n+order+1]) = True.
+    ``comparator(data[n], data[n+1:n+order+1])`` is True.
 
     Parameters
     ----------
-    data: ndarray
-    comparator: function
-        function to use to compare two data points.
-        Should take 2 numbers as arguments
-    axis: int, optional
-        axis over which to select from `data`
-    order: int, optional
-        How many points on each side to require
-        a `comparator`(n,n+x) = True.
-    mode: string, optional
-        How the edges of the vector are treated.
-        'wrap' (wrap around) or 'clip' (treat overflow
-        as the same as the last (or first) element).
-        Default 'clip'. See numpy.take
+    data : ndarray
+        Array in which to find the relative extrema.
+    comparator : callable
+        Function to use to compare two data points.
+        Should take 2 numbers as arguments.
+    axis : int, optional
+        Axis over which to select from `data`.  Default is 0.
+    order : int, optional
+        How many points on each side to use for the comparison
+        to consider ``comparator(n,n+x)`` to be True.
+    mode : str, optional
+        How the edges of the vector are treated.  'wrap' (wrap around) or
+        'clip' (treat overflow as the same as the last (or first) element).
+        Default 'clip'.  See numpy.take
 
     Returns
     -------
-    extrema: ndarray
-        Indices of the extrema, as boolean array
-        of same shape as data. True for an extrema,
-        False else.
+    extrema : ndarray
+        Indices of the extrema, as boolean array of same shape as data.
+        True for an extrema, False else.
 
     See also
     --------
-    argrelmax,argrelmin
+    argrelmax, argrelmin
 
     Examples
     --------
     >>> testdata = np.array([1,2,3,2,1])
     >>> argrelextrema(testdata, np.greater, axis=0)
     array([False, False,  True, False, False], dtype=bool)
-    """
 
+    """
     if((int(order) != order) or (order < 1)):
         raise ValueError('Order must be an int >= 1')
 
@@ -73,9 +74,36 @@ def argrelmin(data, axis=0, order=1, mode='clip'):
     """
     Calculate the relative minima of `data`.
 
+    .. versionadded:: 0.11.0
+
+    Parameters
+    ----------
+    data : ndarray
+        Array in which to find the relative minima.
+    axis : int, optional
+        Axis over which to select from `data`.  Default is 0.
+    order : int, optional
+        How many points on each side to use for the comparison
+        to consider ``comparator(n, n+x)`` to be True.
+    mode : str, optional
+        How the edges of the vector are treated.
+        Available options are 'wrap' (wrap around) or 'clip' (treat overflow
+        as the same as the last (or first) element).
+        Default 'clip'. See numpy.take
+
+    Returns
+    -------
+    extrema : ndarray
+        Indices of the minima, as an array of integers.
+
     See also
     --------
-    argrelextrema,argrelmax
+    argrelextrema, argrelmax
+
+    Notes
+    -----
+    This function uses `argrelextrema` with np.less as comparator.
+
     """
     return argrelextrema(data, np.less, axis, order, mode)
 
@@ -84,23 +112,68 @@ def argrelmax(data, axis=0, order=1, mode='clip'):
     """
     Calculate the relative maxima of `data`.
 
+    .. versionadded:: 0.11.0
+
+    Parameters
+    ----------
+    data : ndarray
+        Array in which to find the relative maxima.
+    axis : int, optional
+        Axis over which to select from `data`.  Default is 0.
+    order : int, optional
+        How many points on each side to use for the comparison
+        to consider ``comparator(n, n+x)`` to be True.
+    mode : str, optional
+        How the edges of the vector are treated.
+        Available options are 'wrap' (wrap around) or 'clip' (treat overflow
+        as the same as the last (or first) element).
+        Default 'clip'.  See `numpy.take`.
+
+    Returns
+    -------
+    extrema : ndarray
+        Indices of the maxima, as an array of integers.
+
     See also
     --------
-    argrelextrema,argrelmin
+    argrelextrema, argrelmin
+
+    Notes
+    -----
+    This function uses `argrelextrema` with np.greater as comparator.
+
     """
     return argrelextrema(data, np.greater, axis, order, mode)
 
 
-def argrelextrema(data, comparator,
-                  axis=0, order=1, mode='clip'):
+def argrelextrema(data, comparator, axis=0, order=1, mode='clip'):
     """
-    Calculate the relative extrema of `data`
+    Calculate the relative extrema of `data`.
+
+    .. versionadded:: 0.11.0
+
+    Parameters
+    ----------
+    data : ndarray
+        Array in which to find the relative extrema.
+    comparator : callable
+        Function to use to compare two data points.
+        Should take 2 numbers as arguments.
+    axis : int, optional
+        Axis over which to select from `data`.  Default is 0.
+    order : int, optional
+        How many points on each side to use for the comparison
+        to consider ``comparator(n, n+x)`` to be True.
+    mode : str, optional
+        How the edges of the vector are treated.  'wrap' (wrap around) or
+        'clip' (treat overflow as the same as the last (or first) element).
+        Default is 'clip'.  See `numpy.take`.
 
     Returns
     -------
-    extrema: ndarray
-        Indices of the extrema, as an array
-        of integers (same format as argmin, argmax
+    extrema : ndarray
+        Indices of the extrema, as an array of integers (same format as
+        np.argmin, np.argmax).
 
     See also
     --------
@@ -117,18 +190,20 @@ def argrelextrema(data, comparator,
 
 def _identify_ridge_lines(matr, max_distances, gap_thresh):
     """
-    Identify ridges in the 2D matrix. Expect that the width of
-    the wavelet feature increases with increasing row number.
+    Identify ridges in the 2-D matrix.
+
+    Expect that the width of the wavelet feature increases with increasing row
+    number.
 
     Parameters
     ----------
-    matr: 2-D ndarray
+    matr : 2-D ndarray
         Matrix in which to identify ridge lines.
-    max_distances: 1-D sequence
+    max_distances : 1-D sequence
         At each row, a ridge line is only connected
         if the relative max at row[n] is within
         `max_distances`[n] from the relative max at row[n+1].
-    gap_thresh: int
+    gap_thresh : int
         If a relative maximum is not found within `max_distances`,
         there will be a gap. A ridge line is discontinued if
         there are more than `gap_thresh` points without connecting
@@ -136,11 +211,11 @@ def _identify_ridge_lines(matr, max_distances, gap_thresh):
 
     Returns
     -------
-    ridge_lines: tuple
-        tuple of 2 1-D sequences. `ridge_lines`[ii][0] are the rows of the ii-th
+    ridge_lines : tuple
+        Tuple of 2 1-D sequences. `ridge_lines`[ii][0] are the rows of the ii-th
         ridge-line, `ridge_lines`[ii][1] are the columns. Empty if none found.
         Each ridge-line will be sorted by row (increasing), but the order
-        of the ridge lines is not specified
+        of the ridge lines is not specified.
 
     References
     ----------
@@ -153,12 +228,12 @@ def _identify_ridge_lines(matr, max_distances, gap_thresh):
     >>> data = np.random.rand(5,5)
     >>> ridge_lines = identify_ridge_lines(data, 1, 1)
 
-    Notes:
-    ------
+    Notes
+    -----
     This function is intended to be used in conjuction with `cwt`
-    as part of find_peaks_cwt.
-    """
+    as part of `find_peaks_cwt`.
 
+    """
     if(len(max_distances) < matr.shape[0]):
         raise ValueError('Max_distances must have at least as many rows as matr')
 
@@ -190,7 +265,6 @@ def _identify_ridge_lines(matr, max_distances, gap_thresh):
         prev_ridge_cols = np.array([line[1][-1] for line in ridge_lines])
         #Look through every relative maximum found at current row
         #Attempt to connect them with existing ridge lines.
-        new_lines = []
         for ind, col in enumerate(this_max_cols):
             """
             If there is a previous ridge line within
@@ -231,6 +305,7 @@ def _identify_ridge_lines(matr, max_distances, gap_thresh):
         rows[sortargs] = line[0]
         cols[sortargs] = line[1]
         out_lines.append([rows, cols])
+
     return out_lines
 
 
@@ -241,25 +316,24 @@ def _filter_ridge_lines(cwt, ridge_lines, window_size=None, min_length=None,
     to be used for finding relative maxima.
 
     Parameters
-    -------------
+    ----------
     cwt : 2-D ndarray
-        Continuous wavelet transform from which
-        the ridge_lines were defined
-    ridge_lines: 1-D sequence
+        Continuous wavelet transform from which the `ridge_lines` were defined.
+    ridge_lines : 1-D sequence
         Each element should contain 2 sequences, the rows and columns
-        of the ridge line (respectively)
-    window_size: int, optional
+        of the ridge line (respectively).
+    window_size : int, optional
         Size of window to use to calculate noise floor.
-        Default is `cwt`.shape[1]/20
-    min_length: int, optional
+        Default is ``cwt.shape[1] / 20``.
+    min_length : int, optional
         Minimum length a ridge line needs to be acceptable.
-        Default is `cwt`.shape[0]/4, ie 1/4th the number of widths.
-    min_snr: float, optional
-        Minimum SNR ratio. Default 0. The signal is the value of
-        the cwt matrix at the shortest length scale (`cwt`[0,loc]), the noise is
-        the `noise_perc`th percentile of datapoints contained within
-        a window of `window_size` around `cwt`[0,loc]
-    noise_perc: float,optional
+        Default is ``cwt.shape[0] / 4``, ie 1/4-th the number of widths.
+    min_snr : float, optional
+        Minimum SNR ratio. Default 1. The signal is the value of
+        the cwt matrix at the shortest length scale (``cwt[0, loc]``), the
+        noise is the `noise_perc`th percentile of datapoints contained within a
+        window of `window_size` around ``cwt[0, loc]``.
+    noise_perc : float, optional
         When calculating the noise floor, percentile of data points
         examined below which to consider noise. Calculated using
         scipy.stats.scoreatpercentile.
@@ -293,64 +367,87 @@ def _filter_ridge_lines(cwt, ridge_lines, window_size=None, min_length=None,
             return False
         return True
 
-    return filter(filt_func, ridge_lines)
+    return list(filter(filt_func, ridge_lines))
 
 
 def find_peaks_cwt(vector, widths, wavelet=None, max_distances=None, gap_thresh=None,
-               min_length=None, min_snr=1, noise_perc=10):
+                   min_length=None, min_snr=1, noise_perc=10):
     """
-    Attempt to find the peaks in the given 1-D array `vector`.
+    Attempt to find the peaks in a 1-D array.
 
-    The general approach is to smooth `vector` by convolving it with `wavelet(width)`
-    for each width in `widths`. Relative maxima which appear at enough length scales,
-    and with sufficiently high SNR, are accepted.
+    The general approach is to smooth `vector` by convolving it with
+    `wavelet(width)` for each width in `widths`. Relative maxima which
+    appear at enough length scales, and with sufficiently high SNR, are
+    accepted.
+
+    .. versionadded:: 0.11.0
 
     Parameters
     ----------
-    vector: 1-D ndarray
-    widths: 1-D sequence
-        Widths to use for calculating the CWT matrix. In general,
+    vector : ndarray
+        1-D array in which to find the peaks.
+    widths : sequence
+        1-D array of widths to use for calculating the CWT matrix. In general,
         this range should cover the expected width of peaks of interest.
-    wavelet: function
-        Should take a single variable and return a 1d array to convolve
-        with `vector`. Should be normalized to unit area. Default
-        is the ricker wavelet
-    max_distances: 1-D ndarray,optional
-        Default `widths`/4. See identify_ridge_lines
-    gap_thresh: float, optional
-        Default 2. See identify_ridge_lines
-    min_length: int, optional
-        Default None. See filter_ridge_lines
-    min_snr: float, optional
-        Default 1. See filter_ridge_lines
-    noise_perc: float, optional
-        Default 10. See filter_ridge_lines
+    wavelet : callable, optional
+        Should take a single variable and return a 1-D array to convolve
+        with `vector`.  Should be normalized to unit area.
+        Default is the ricker wavelet.
+    max_distances : ndarray, optional
+        At each row, a ridge line is only connected if the relative max at
+        row[n] is within ``max_distances[n]`` from the relative max at
+        ``row[n+1]``.  Default value is ``widths/4``.
+    gap_thresh : float, optional
+        If a relative maximum is not found within `max_distances`,
+        there will be a gap. A ridge line is discontinued if there are more
+        than `gap_thresh` points without connecting a new relative maximum.
+        Default is 2.
+    min_length : int, optional
+        Minimum length a ridge line needs to be acceptable.
+        Default is ``cwt.shape[0] / 4``, ie 1/4-th the number of widths.
+    min_snr : float, optional
+        Minimum SNR ratio. Default 1. The signal is the value of
+        the cwt matrix at the shortest length scale (``cwt[0, loc]``), the
+        noise is the `noise_perc`th percentile of datapoints contained within a
+        window of `window_size` around ``cwt[0, loc]``.
+    noise_perc : float, optional
+        When calculating the noise floor, percentile of data points
+        examined below which to consider noise. Calculated using
+        `stats.scoreatpercentile`.  Default is 10.
+
+    See Also
+    --------
+    cwt
 
     Notes
-    ---------
-    This approach was designed for finding sharp peaks among noisy data, however
-    with proper parameter selection it should function well for different
-    peak shapes.
+    -----
+    This approach was designed for finding sharp peaks among noisy data,
+    however with proper parameter selection it should function well for
+    different peak shapes.
+
     The algorithm is as follows:
-    1. Perform a continuous wavelet transform on `vector`, for the supplied
-    `widths`. This is a convolution of `vector` with `wavelet(width)` for
-    each width in `widths`. See `cwt`
-    2. Identify "ridge lines" in the cwt matrix. These are relative maxima
-    at each row, connected across adjacent rows. See identify_ridge_lines
-    3. Filter the ridge_lines using filter_ridge_lines.
+     1. Perform a continuous wavelet transform on `vector`, for the supplied
+        `widths`. This is a convolution of `vector` with `wavelet(width)` for
+        each width in `widths`. See `cwt`
+     2. Identify "ridge lines" in the cwt matrix. These are relative maxima
+        at each row, connected across adjacent rows. See identify_ridge_lines
+     3. Filter the ridge_lines using filter_ridge_lines.
 
     References
     ----------
-    Bioinformatics (2006) 22 (17): 2059-2065. doi: 10.1093/bioinformatics/btl355
-    http://bioinformatics.oxfordjournals.org/content/22/17/2059.long
+    .. [1] Bioinformatics (2006) 22 (17): 2059-2065.
+        doi: 10.1093/bioinformatics/btl355
+        http://bioinformatics.oxfordjournals.org/content/22/17/2059.long
 
     Examples
     --------
+    >>> from scipy import signal
     >>> xs = np.arange(0, np.pi, 0.05)
     >>> data = np.sin(xs)
-    >>> peakind = find_peaks_cwt(data, np.arange(1,10))
-    >>> peakind, xs[peakind],data[peakind]
+    >>> peakind = signal.find_peaks_cwt(data, np.arange(1,10))
+    >>> peakind, xs[peakind], data[peakind]
     ([32], array([ 1.6]), array([ 0.9995736]))
+
     """
     if gap_thresh is None:
         gap_thresh = np.ceil(widths[0])
@@ -363,5 +460,5 @@ def find_peaks_cwt(vector, widths, wavelet=None, max_distances=None, gap_thresh=
     ridge_lines = _identify_ridge_lines(cwt_dat, max_distances, gap_thresh)
     filtered = _filter_ridge_lines(cwt_dat, ridge_lines, min_length=min_length,
                                    min_snr=min_snr, noise_perc=noise_perc)
-    max_locs = map(lambda x: x[1][0], filtered)
+    max_locs = [x[1][0] for x in filtered]
     return sorted(max_locs)

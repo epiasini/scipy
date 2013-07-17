@@ -9,6 +9,7 @@ features are:
     - exponential format for float values, and int format
 
 """
+from __future__ import division, print_function, absolute_import
 
 # TODO:
 #   - Add more support (symmetric/complex matrices, non-assembled matrices ?)
@@ -26,6 +27,7 @@ from scipy.sparse import csc_matrix
 from scipy.io.harwell_boeing._fortran_format_parser import \
         FortranFormatParser, IntFormat, ExpFormat
 
+from scipy.lib.six import string_types
 
 __all__ = ["MalformedHeader", "read_hb", "write", "HBInfo", "HBFile",
            "HBMatrixType"]
@@ -33,6 +35,7 @@ __all__ = ["MalformedHeader", "read_hb", "write", "HBInfo", "HBFile",
 
 class MalformedHeader(Exception):
     pass
+
 
 class LineOverflow(Warning):
     pass
@@ -51,20 +54,20 @@ class HBInfo(object):
 
         Parameters
         ----------
-        m: sparse matrix
+        m : sparse matrix
             the HBInfo instance will derive its parameters from m
-        title: str
+        title : str
             Title to put in the HB header
-        key: str
+        key : str
             Key
-        mxtype: HBMatrixType
+        mxtype : HBMatrixType
             type of the input matrix
-        fmt: dict
+        fmt : dict
             not implemented
 
         Returns
         -------
-        hb_info: HBInfo instance
+        hb_info : HBInfo instance
         """
         pointer = m.indptr
         indices = m.indices
@@ -96,7 +99,7 @@ class HBInfo(object):
             elif values.dtype.kind in np.typecodes["AllFloat"]:
                 tp = "real"
             else:
-                raise NotImplementedError("type %s for values not implemented" \
+                raise NotImplementedError("type %s for values not implemented"
                                           % values.dtype)
             mxtype = HBMatrixType(tp, "unsymmetric", "assembled")
         else:
@@ -127,12 +130,12 @@ class HBInfo(object):
 
         Parameters
         ----------
-        fid: file-like matrix
+        fid : file-like matrix
             File or file-like object containing a matrix in the HB format.
 
         Returns
         -------
-        hb_info: HBInfo instance
+        hb_info : HBInfo instance
         """
         # First line
         line = fid.readline().strip("\n")
@@ -147,10 +150,10 @@ class HBInfo(object):
         if not len(line.rstrip()) >= 56:
             raise ValueError("Expected at least 56 characters for second line, "
                              "got: \n%s" % line)
-        total_nlines    = _expect_int(line[:14])
-        pointer_nlines  = _expect_int(line[14:28])
-        indices_nlines  = _expect_int(line[28:42])
-        values_nlines   = _expect_int(line[42:56])
+        total_nlines = _expect_int(line[:14])
+        pointer_nlines = _expect_int(line[14:28])
+        indices_nlines = _expect_int(line[28:42])
+        values_nlines = _expect_int(line[42:56])
 
         rhs_nlines = line[56:72].strip()
         if rhs_nlines == '':
@@ -158,7 +161,7 @@ class HBInfo(object):
         else:
             rhs_nlines = _expect_int(rhs_nlines)
         if not rhs_nlines == 0:
-            raise ValueError("Only files without right hand side supported for " \
+            raise ValueError("Only files without right hand side supported for "
                              "now.")
 
         # Third line
@@ -223,7 +226,6 @@ class HBInfo(object):
         if len(key) > 8:
             warnings.warn("key is > 8 characters (key is %s)" % key, LineOverflow)
 
-
         self.total_nlines = total_nlines
         self.pointer_nlines = pointer_nlines
         self.indices_nlines = indices_nlines
@@ -243,12 +245,12 @@ class HBInfo(object):
         values_format = parser.parse(values_format_str)
         if isinstance(values_format, ExpFormat):
             if not mxtype.value_type in ["real", "complex"]:
-                raise ValueError("Inconsistency between matrix type %s and " \
+                raise ValueError("Inconsistency between matrix type %s and "
                                  "value type %s" % (mxtype, values_format))
             values_dtype = np.float64
         elif isinstance(values_format, IntFormat):
             if not mxtype.value_type in ["integer"]:
-                raise ValueError("Inconsistency between matrix type %s and " \
+                raise ValueError("Inconsistency between matrix type %s and "
                                  "value type %s" % (mxtype, values_format))
             # XXX: fortran int -> dtype association ?
             values_dtype = np.int
@@ -308,7 +310,7 @@ def _expect_int(value, msg=None):
 
 def _read_hb_data(content, header):
     # XXX: look at a way to reduce memory here (big string creation)
-    ptr_string =  "".join([content.read(header.pointer_nbytes_full),
+    ptr_string = "".join([content.read(header.pointer_nbytes_full),
                            content.readline()])
     ptr = np.fromstring(ptr_string,
             dtype=np.int, sep=' ')
@@ -326,7 +328,7 @@ def _read_hb_data(content, header):
     try:
         return csc_matrix((val, ind-1, ptr-1),
                           shape=(header.nrows, header.ncols))
-    except ValueError, e:
+    except ValueError as e:
         raise e
 
 
@@ -385,7 +387,7 @@ class HBMatrixType(object):
     @classmethod
     def from_fortran(cls, fmt):
         if not len(fmt) == 3:
-            raise ValueError("Fortran format for matrix type should be 3 " \
+            raise ValueError("Fortran format for matrix type should be 3 "
                              "characters long")
         try:
             value_type = cls._f2q_type[fmt[0]]
@@ -400,11 +402,11 @@ class HBMatrixType(object):
         self.structure = structure
         self.storage = storage
 
-        if not value_type in self._q2f_type.keys():
+        if not value_type in self._q2f_type:
             raise ValueError("Unrecognized type %s" % value_type)
-        if not structure in self._q2f_structure.keys():
+        if not structure in self._q2f_structure:
             raise ValueError("Unrecognized structure %s" % structure)
-        if not storage in self._q2f_storage.keys():
+        if not storage in self._q2f_storage:
             raise ValueError("Unrecognized storage %s" % storage)
 
     @property
@@ -424,9 +426,9 @@ class HBFile(object):
 
         Parameters
         ----------
-        file: file-object
+        file : file-object
             StringIO work as well
-        hb_info: HBInfo
+        hb_info : HBInfo
             Should be given as an argument for writing, in which case the file
             should be writable.
         """
@@ -470,7 +472,7 @@ def hb_read(file):
 
     Parameters
     ----------
-    file: str-like or file-like
+    file : str-like or file-like
         If a string-like object, file is the name of the file to read. If a
         file-like object, the data are read from it.
 
@@ -493,7 +495,7 @@ def hb_read(file):
         hb = HBFile(fid)
         return hb.read_matrix()
 
-    if isinstance(file, basestring):
+    if isinstance(file, string_types):
         fid = open(file)
         try:
             return _get_matrix(fid)
@@ -508,12 +510,12 @@ def hb_write(file, m, hb_info=None):
 
     Parameters
     ----------
-    file: str-like or file-like
+    file : str-like or file-like
         if a string-like object, file is the name of the file to read. If a
         file-like object, the data are read from it.
-    m: sparse-matrix
+    m : sparse-matrix
         the sparse matrix to write
-    hb_info: HBInfo
+    hb_info : HBInfo
         contains the meta-data for write
 
     Returns
@@ -537,7 +539,7 @@ def hb_write(file, m, hb_info=None):
         hb = HBFile(fid, hb_info)
         return hb.write_matrix(m)
 
-    if isinstance(file, basestring):
+    if isinstance(file, string_types):
         fid = open(file, "w")
         try:
             return _set_matrix(fid)
@@ -545,4 +547,3 @@ def hb_write(file, m, hb_info=None):
             fid.close()
     else:
         return _set_matrix(file)
-

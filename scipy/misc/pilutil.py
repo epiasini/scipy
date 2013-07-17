@@ -5,6 +5,8 @@ Note that PIL is not a dependency of SciPy and this module is not
 available on systems that don't have PIL installed.
 
 """
+from __future__ import division, print_function, absolute_import
+
 # Functions which need the PIL
 
 import numpy
@@ -21,8 +23,11 @@ except ImportError:
     import ImageFilter
 
 
+if not hasattr(Image, 'frombytes'):
+    Image.frombytes = Image.fromstring
+
 __all__ = ['fromimage','toimage','imsave','imread','bytescale',
-           'imrotate','imresize','imshow','imfilter','radon']
+           'imrotate','imresize','imshow','imfilter']
 
 
 # Returns a byte-scaled image
@@ -30,23 +35,27 @@ def bytescale(data, cmin=None, cmax=None, high=255, low=0):
     """
     Byte scales an array (image).
 
+    Byte scaling means converting the input image to uint8 dtype and scaling
+    the range to ``(low, high)`` (default 0-255).
+    If the input image already has dtype uint8, no scaling is done.
+
     Parameters
     ----------
     data : ndarray
         PIL image data array.
-    cmin :  Scalar
-        Bias scaling of small values, Default is data.min().
-    cmax : scalar
-        Bias scaling of large values, Default is data.max().
-    high : scalar
-        Scale max value to `high`.
-    low : scalar
-        Scale min value to `low`.
+    cmin : scalar, optional
+        Bias scaling of small values. Default is ``data.min()``.
+    cmax : scalar, optional
+        Bias scaling of large values. Default is ``data.max()``.
+    high : scalar, optional
+        Scale max value to `high`.  Default is 255.
+    low : scalar, optional
+        Scale min value to `low`.  Default is 0.
 
     Returns
     -------
-    img_array : ndarray
-        Bytescaled array.
+    img_array : uint8 ndarray
+        The byte-scaled array.
 
     Examples
     --------
@@ -69,12 +78,27 @@ def bytescale(data, cmin=None, cmax=None, high=255, low=0):
     """
     if data.dtype == uint8:
         return data
-    high = high - low
-    if cmin is None: cmin = data.min()
-    if cmax is None: cmax = data.max()
-    scale = high *1.0 / (cmax-cmin or 1)
-    bytedata = ((data*1.0-cmin)*scale + 0.4999).astype(uint8)
-    return bytedata + cast[uint8](low)
+
+    if high < low:
+        raise ValueError("`high` should be larger than `low`.")
+
+    if cmin is None:
+        cmin = data.min()
+    if cmax is None:
+        cmax = data.max()
+
+    cscale = cmax - cmin
+    if cscale < 0:
+        raise ValueError("`cmax` should be larger than `cmin`.")
+    elif cscale == 0:
+        cscale = 1
+
+    scale = float(high - low) / cscale
+    bytedata = (data * 1.0 - cmin) * scale + 0.4999
+    bytedata[bytedata > high] = high
+    bytedata[bytedata < 0] = 0
+    return cast[uint8](bytedata) + cast[uint8](low)
+
 
 def imread(name,flatten=0):
     """
@@ -102,15 +126,16 @@ def imread(name,flatten=0):
     im = Image.open(name)
     return fromimage(im,flatten=flatten)
 
+
 def imsave(name, arr):
     """
     Save an array as an image.
 
     Parameters
     ----------
-    filename : str
+    name : str
         Output filename.
-    image : ndarray, MxN or MxNx3 or MxNx4
+    arr : ndarray, MxN or MxNx3 or MxNx4
         Array containing image values.  If the shape is ``MxN``, the array
         represents a grey-level image.  Shape ``MxNx3`` stores the red, green
         and blue bands along the last dimension.  An alpha layer may be
@@ -138,6 +163,7 @@ def imsave(name, arr):
     im.save(name)
     return
 
+
 def fromimage(im, flatten=0):
     """
     Return a copy of a PIL image as a numpy array.
@@ -161,45 +187,54 @@ def fromimage(im, flatten=0):
         raise TypeError("Input is not a PIL image.")
     if flatten:
         im = im.convert('F')
+    elif im.mode == '1':
+        # workaround for crash in PIL, see #1613.
+        im.convert('L')
+
     return array(im)
 
 _errstr = "Mode is unknown or incompatible with input array shape."
 
+
 def toimage(arr, high=255, low=0, cmin=None, cmax=None, pal=None,
             mode=None, channel_axis=None):
-    """Takes a numpy array and returns a PIL image.  The mode of the
-    PIL image depends on the array shape, the pal keyword, and the mode
-    keyword.
+    """Takes a numpy array and returns a PIL image.
 
-    For 2-D arrays, if pal is a valid (N,3) byte-array giving the RGB values
-    (from 0 to 255) then mode='P', otherwise mode='L', unless mode is given
-    as 'F' or 'I' in which case a float and/or integer array is made
+    The mode of the PIL image depends on the array shape and the `pal` and
+    `mode` keywords.
 
-    For 3-D arrays, the channel_axis argument tells which dimension of the
-      array holds the channel data.
+    For 2-D arrays, if `pal` is a valid (N,3) byte-array giving the RGB values
+    (from 0 to 255) then ``mode='P'``, otherwise ``mode='L'``, unless mode
+    is given as 'F' or 'I' in which case a float and/or integer array is made.
+
+    Notes
+    -----
+    For 3-D arrays, the `channel_axis` argument tells which dimension of the
+    array holds the channel data.
+
     For 3-D arrays if one of the dimensions is 3, the mode is 'RGB'
-      by default or 'YCbCr' if selected.
-    if the
+    by default or 'YCbCr' if selected.
 
     The numpy array must be either 2 dimensional or 3 dimensional.
+
     """
     data = asarray(arr)
     if iscomplexobj(data):
         raise ValueError("Cannot convert a complex-valued array.")
     shape = list(data.shape)
-    valid = len(shape)==2 or ((len(shape)==3) and \
+    valid = len(shape) == 2 or ((len(shape) == 3) and
                               ((3 in shape) or (4 in shape)))
     if not valid:
         raise ValueError("'arr' does not have a suitable array shape for any mode.")
     if len(shape) == 2:
-        shape = (shape[1],shape[0]) # columns show up first
+        shape = (shape[1],shape[0])  # columns show up first
         if mode == 'F':
             data32 = data.astype(numpy.float32)
-            image = Image.fromstring(mode,shape,data32.tostring())
+            image = Image.frombytes(mode,shape,data32.tostring())
             return image
         if mode in [None, 'L', 'P']:
             bytedata = bytescale(data,high=high,low=low,cmin=cmin,cmax=cmax)
-            image = Image.fromstring('L',shape,bytedata.tostring())
+            image = Image.frombytes('L',shape,bytedata.tostring())
             if pal is not None:
                 image.putpalette(asarray(pal,dtype=uint8).tostring())
                 # Becomes a mode='P' automagically.
@@ -210,7 +245,7 @@ def toimage(arr, high=255, low=0, cmin=None, cmax=None, pal=None,
             return image
         if mode == '1':  # high input gives threshold for 1
             bytedata = (data > high)
-            image = Image.fromstring('1',shape,bytedata.tostring())
+            image = Image.frombytes('1',shape,bytedata.tostring())
             return image
         if cmin is None:
             cmin = amin(ravel(data))
@@ -219,7 +254,7 @@ def toimage(arr, high=255, low=0, cmin=None, cmax=None, pal=None,
         data = (data*1.0 - cmin)*(high-low)/(cmax-cmin) + low
         if mode == 'I':
             data32 = data.astype(numpy.uint32)
-            image = Image.fromstring(mode,shape,data32.tostring())
+            image = Image.frombytes(mode,shape,data32.tostring())
         else:
             raise ValueError(_errstr)
         return image
@@ -253,9 +288,10 @@ def toimage(arr, high=255, low=0, cmin=None, cmax=None, pal=None,
         strdata = transpose(bytedata,(1,2,0)).tostring()
         shape = (shape[2],shape[1])
     if mode is None:
-        if numch == 3: mode = 'RGB'
-        else: mode = 'RGBA'
-
+        if numch == 3:
+            mode = 'RGB'
+        else:
+            mode = 'RGBA'
 
     if mode not in ['RGB','RGBA','YCbCr','CMYK']:
         raise ValueError(_errstr)
@@ -268,8 +304,9 @@ def toimage(arr, high=255, low=0, cmin=None, cmax=None, pal=None,
             raise ValueError("Invalid array shape for mode.")
 
     # Here we know data and mode is correct
-    image = Image.fromstring(mode, shape, strdata)
+    image = Image.frombytes(mode, shape, strdata)
     return image
+
 
 def imrotate(arr,angle,interp='bilinear'):
     """
@@ -277,27 +314,22 @@ def imrotate(arr,angle,interp='bilinear'):
 
     Parameters
     ----------
-    arr : nd_array
+    arr : ndarray
         Input array of image to be rotated.
     angle : float
         The angle of rotation.
     interp : str, optional
         Interpolation
 
+        - 'nearest' :  for nearest neighbor
+        - 'bilinear' : for bilinear
+        - 'cubic' : cubic
+        - 'bicubic' : for bicubic
 
     Returns
     -------
-    imrotate : nd_array
+    imrotate : ndarray
         The rotated array of image.
-
-    Notes
-    -----
-
-    Interpolation methods can be:
-     * 'nearest' :  for nearest neighbor
-     * 'bilinear' : for bilinear
-     * 'cubic' : cubic
-     * 'bicubic' : for bicubic
 
     """
     arr = asarray(arr)
@@ -305,6 +337,7 @@ def imrotate(arr,angle,interp='bilinear'):
     im = toimage(arr)
     im = im.rotate(angle,resample=func[interp])
     return fromimage(im)
+
 
 def imshow(arr):
     """
@@ -347,13 +380,14 @@ def imshow(arr):
     if status != 0:
         raise RuntimeError('Could not execute image viewer.')
 
+
 def imresize(arr, size, interp='bilinear', mode=None):
     """
     Resize an image.
 
     Parameters
     ----------
-    arr : nd_array
+    arr : ndarray
         The array of image to be resized.
 
     size : int, float or tuple
@@ -408,7 +442,7 @@ def imfilter(arr,ftype):
     Raises
     ------
     ValueError
-        *Unknown filter type.* . If the filter you are trying
+        *Unknown filter type.*  If the filter you are trying
         to apply is unsupported.
 
     """
@@ -425,18 +459,6 @@ def imfilter(arr,ftype):
               }
 
     im = toimage(arr)
-    if ftype not in _tdict.keys():
+    if ftype not in _tdict:
         raise ValueError("Unknown filter type.")
     return fromimage(im.filter(_tdict[ftype]))
-
-
-def radon(arr,theta=None):
-    if theta is None:
-        theta = mgrid[0:180]
-    s = zeros((arr.shape[1],len(theta)), float)
-    k = 0
-    for th in theta:
-        im = imrotate(arr,-th)
-        s[:,k] = sum(im,axis=0)
-        k += 1
-    return s

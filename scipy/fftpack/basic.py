@@ -2,13 +2,14 @@
 Discrete Fourier Transforms - basic.py
 """
 # Created by Pearu Peterson, August,September 2002
+from __future__ import division, print_function, absolute_import
 
 __all__ = ['fft','ifft','fftn','ifftn','rfft','irfft',
            'fft2','ifft2']
 
 from numpy import zeros, swapaxes
 import numpy
-import _fftpack
+from . import _fftpack
 
 import atexit
 atexit.register(_fftpack.destroy_zfft_cache)
@@ -19,8 +20,10 @@ atexit.register(_fftpack.destroy_cfftnd_cache)
 atexit.register(_fftpack.destroy_rfft_cache)
 del atexit
 
+
 def istype(arr, typeclass):
     return issubclass(arr.dtype.type, typeclass)
+
 
 def _datacopied(arr, original):
     """
@@ -43,6 +46,7 @@ def _datacopied(arr, original):
 #
 #      These should be re-enabled once the problems are resolved
 
+
 def _is_safe_size(n):
     """
     Is the size of FFT such that FFTPACK can handle it in single precision
@@ -56,11 +60,13 @@ def _is_safe_size(n):
             n /= c
     return (n <= 1)
 
+
 def _fake_crfft(x, n, *a, **kw):
     if _is_safe_size(n):
         return _fftpack.crfft(x, n, *a, **kw)
     else:
         return _fftpack.zrfft(x, n, *a, **kw).astype(numpy.complex64)
+
 
 def _fake_cfft(x, n, *a, **kw):
     if _is_safe_size(n):
@@ -68,14 +74,16 @@ def _fake_cfft(x, n, *a, **kw):
     else:
         return _fftpack.zfft(x, n, *a, **kw).astype(numpy.complex64)
 
+
 def _fake_rfft(x, n, *a, **kw):
     if _is_safe_size(n):
         return _fftpack.rfft(x, n, *a, **kw)
     else:
         return _fftpack.drfft(x, n, *a, **kw).astype(numpy.float32)
 
+
 def _fake_cfftnd(x, shape, *a, **kw):
-    if numpy.all(map(_is_safe_size, shape)):
+    if numpy.all(list(map(_is_safe_size, shape))):
         return _fftpack.cfftnd(x, shape, *a, **kw)
     else:
         return _fftpack.zfftnd(x, shape, *a, **kw).astype(numpy.complex64)
@@ -104,6 +112,7 @@ _DTYPE_TO_FFTN = {
         numpy.dtype(numpy.float64): _fftpack.zfftnd,
 }
 
+
 def _asfarray(x):
     """Like numpy asfarray, except that it does not modify x dtype if x is
     already an array with a float dtype, and do not cast complex types to
@@ -117,6 +126,7 @@ def _asfarray(x):
         if not ret.dtype.char in numpy.typecodes["AllFloat"]:
             return numpy.asfarray(x)
         return ret
+
 
 def _fix_shape(x, n, axis):
     """ Internal auxiliary function for _raw_fft, _raw_fftnd."""
@@ -176,12 +186,16 @@ def fft(x, n=None, axis=-1, overwrite_x=0):
     Returns
     -------
     z : complex ndarray
-        with the elements:
+        with the elements::
+
             [y(0),y(1),..,y(n/2),y(1-n/2),...,y(-1)]        if n is even
             [y(0),y(1),..,y((n-1)/2),y(-(n-1)/2),...,y(-1)]  if n is odd
-        where
+
+        where::
+
             y(j) = sum[k=0..n-1] x[k] * exp(-sqrt(-1)*j*k* 2*pi/n), j = 0..n-1
-        Note that y(-j) = y(n-j).conjugate().
+
+        Note that ``y(-j) = y(n-j).conjugate()``.
 
     See Also
     --------
@@ -190,22 +204,25 @@ def fft(x, n=None, axis=-1, overwrite_x=0):
 
     Notes
     -----
-    The packing of the result is "standard": If A = fft(a, n), then A[0]
-    contains the zero-frequency term, A[1:n/2+1] contains the
-    positive-frequency terms, and A[n/2+1:] contains the negative-frequency
+    The packing of the result is "standard": If ``A = fft(a, n)``, then
+    ``A[0]`` contains the zero-frequency term, ``A[1:n/2]`` contains the
+    positive-frequency terms, and ``A[n/2:]`` contains the negative-frequency
     terms, in order of decreasingly negative frequency. So for an 8-point
-    transform, the frequencies of the result are [ 0, 1, 2, 3, 4, -3, -2, -1].
+    transform, the frequencies of the result are [0, 1, 2, 3, -4, -3, -2, -1].
+    To rearrange the fft output so that the zero-frequency component is
+    centered, like [-4, -3, -2, -1,  0,  1,  2,  3], use `fftshift`.
 
-    For n even, A[n/2] contains the sum of the positive and negative-frequency
-    terms. For n even and x real, A[n/2] will always be real.
+    For `n` even, ``A[n/2]`` contains the sum of the positive and
+    negative-frequency terms.  For `n` even and `x` real, ``A[n/2]`` will
+    always be real.
 
-    This is most efficient for n a power of two.
+    This function is most efficient when `n` is a power of two.
 
     Examples
     --------
     >>> from scipy.fftpack import fft, ifft
     >>> x = np.arange(5)
-    >>> np.allclose(fft(ifft(x)), x, atol=1e-15) #within numerical accuracy.
+    >>> np.allclose(fft(ifft(x)), x, atol=1e-15)  # within numerical accuracy.
     True
 
     """
@@ -233,6 +250,7 @@ def fft(x, n=None, axis=-1, overwrite_x=0):
     tmp = swapaxes(tmp, axis, -1)
     tmp = work_function(tmp,n,1,0,overwrite_x)
     return swapaxes(tmp, axis, -1)
+
 
 def ifft(x, n=None, axis=-1, overwrite_x=0):
     """
@@ -303,7 +321,7 @@ def rfft(x, n=None, axis=-1, overwrite_x=0):
     Parameters
     ----------
     x : array_like, real-valued
-        The data to tranform.
+        The data to transform.
     n : int, optional
         Defines the length of the Fourier transform.  If `n` is not specified
         (the default) then ``n = x.shape[axis]``.  If ``n < x.shape[axis]``,
@@ -315,7 +333,7 @@ def rfft(x, n=None, axis=-1, overwrite_x=0):
         If set to true, the contents of `x` can be overwritten. Default is
         False.
 
-    See also
+    See Also
     --------
     fft, irfft, scipy.fftpack.basic
 
@@ -340,25 +358,58 @@ def rfft(x, n=None, axis=-1, overwrite_x=0):
 
 
 def irfft(x, n=None, axis=-1, overwrite_x=0):
-    """ irfft(x, n=None, axis=-1, overwrite_x=0) -> y
-
+    """
     Return inverse discrete Fourier transform of real sequence x.
-    The contents of x is interpreted as the output of rfft(..)
+
+    The contents of x is interpreted as the output of the ``rfft(..)``
     function.
 
-    The returned real array contains
-      [y(0),y(1),...,y(n-1)]
-    where for n is even
-      y(j) = 1/n (sum[k=1..n/2-1] (x[2*k-1]+sqrt(-1)*x[2*k])
-                                   * exp(sqrt(-1)*j*k* 2*pi/n)
-                  + c.c. + x[0] + (-1)**(j) x[n-1])
-    and for n is odd
-      y(j) = 1/n (sum[k=1..(n-1)/2] (x[2*k-1]+sqrt(-1)*x[2*k])
-                                   * exp(sqrt(-1)*j*k* 2*pi/n)
-                  + c.c. + x[0])
+    Parameters
+    ----------
+    x : array_like
+        Transformed data to invert.
+    n : int, optional
+        Length of the inverse Fourier transform.
+        If n < x.shape[axis], x is truncated.
+        If n > x.shape[axis], x is zero-padded.
+        The default results in n = x.shape[axis].
+    axis : int, optional
+        Axis along which the ifft's are computed; the default is over
+        the last axis (i.e., axis=-1).
+    overwrite_x : bool, optional
+        If True the contents of `x` can be destroyed; the default is False.
+
+    Returns
+    -------
+    irfft : ndarray of floats
+        The inverse discrete Fourier transform.
+
+    See Also
+    --------
+    rfft, ifft
+
+    Notes
+    -----
+    The returned real array contains::
+
+        [y(0),y(1),...,y(n-1)]
+
+    where for n is even::
+
+        y(j) = 1/n (sum[k=1..n/2-1] (x[2*k-1]+sqrt(-1)*x[2*k])
+                                     * exp(sqrt(-1)*j*k* 2*pi/n)
+                    + c.c. + x[0] + (-1)**(j) x[n-1])
+
+    and for n is odd::
+
+        y(j) = 1/n (sum[k=1..(n-1)/2] (x[2*k-1]+sqrt(-1)*x[2*k])
+                                     * exp(sqrt(-1)*j*k* 2*pi/n)
+                    + c.c. + x[0])
+
     c.c. denotes complex conjugate of preceeding expression.
 
-    Optional input: see rfft.__doc__
+    For details on input parameters, see `rfft`.
+
     """
     tmp = _asfarray(x)
     if not numpy.isrealobj(tmp):
@@ -373,6 +424,7 @@ def irfft(x, n=None, axis=-1, overwrite_x=0):
 
     return _raw_fft(tmp,n,axis,-1,overwrite_x,work_function)
 
+
 def _raw_fftnd(x, s, axes, direction, overwrite_x, work_function):
     """ Internal auxiliary function for fftnd, ifftnd."""
     if s is None:
@@ -384,12 +436,16 @@ def _raw_fftnd(x, s, axes, direction, overwrite_x, work_function):
     s = tuple(s)
     if axes is None:
         noaxes = True
-        axes = range(-x.ndim, 0)
+        axes = list(range(-x.ndim, 0))
     else:
         noaxes = False
     if len(axes) != len(s):
-        raise ValueError("when given, axes and shape arguments "\
+        raise ValueError("when given, axes and shape arguments "
                          "have to be of the same length")
+
+    for dim in s:
+        if dim < 1:
+            raise ValueError("Invalid number of FFT data points (%d) specified." % s)
 
     # No need to swap axes, array is in C order
     if noaxes:
@@ -413,7 +469,7 @@ def _raw_fftnd(x, s, axes, direction, overwrite_x, work_function):
     # We can now operate on the axes waxes, the p last axes (p = len(axes)), by
     # fixing the shape of the input array to 1 for any axis the fft is not
     # carried upon.
-    waxes = range(x.ndim - len(axes), x.ndim)
+    waxes = list(range(x.ndim - len(axes), x.ndim))
     shape = numpy.ones(x.ndim)
     shape[waxes] = s
 
@@ -433,7 +489,7 @@ def _raw_fftnd(x, s, axes, direction, overwrite_x, work_function):
 
 def fftn(x, shape=None, axes=None, overwrite_x=0):
     """
-    Return multi-dimensional discrete Fourier transform of x.
+    Return multidimensional discrete Fourier transform.
 
     The returned array contains::
 
@@ -478,6 +534,7 @@ def fftn(x, shape=None, axes=None, overwrite_x=0):
     """
     return _raw_fftn_dispatch(x, shape, axes, overwrite_x, 1)
 
+
 def _raw_fftn_dispatch(x, shape, axes, overwrite_x, direction):
     tmp = _asfarray(x)
 
@@ -513,6 +570,7 @@ def ifftn(x, shape=None, axes=None, overwrite_x=0):
 
     """
     return _raw_fftn_dispatch(x, shape, axes, overwrite_x, -1)
+
 
 def fft2(x, shape=None, axes=(-2,-1), overwrite_x=0):
     """

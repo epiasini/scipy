@@ -19,6 +19,7 @@ MATLAB® files
 
    loadmat - Read a MATLAB style mat file (version 4 through 7.1)
    savemat - Write a MATLAB style mat file (version 4 through 7.1)
+   whosmat - List contents of a MATLAB style mat file (version 4 through 7.1)
 
 IDL® files
 ==========
@@ -38,13 +39,13 @@ Matrix Market files
    mmread - Read matrix from Matrix Market formatted file
    mmwrite - Write matrix to Matrix Market formatted file
 
-Other
-=====
+Unformatted Fortran files
+===============================
 
 .. autosummary::
    :toctree: generated/
 
-   save_as_module - Data saved as module, accessed on load as attirbutes
+   FortranFile - A file object for unformatted sequential Fortran files
 
 Wav sound files (:mod:`scipy.io.wavfile`)
 =========================================
@@ -77,20 +78,22 @@ Netcdf (:mod:`scipy.io.netcdf`)
 
    netcdf_file - A file object for NetCDF data
    netcdf_variable - A data object for the netcdf module
-
 """
+from __future__ import division, print_function, absolute_import
+
 # matfile read and write
-from matlab import loadmat, savemat, byteordercodes
+from .matlab import loadmat, savemat, whosmat, byteordercodes
 
 # netCDF file support
-from netcdf import netcdf_file, netcdf_variable
+from .netcdf import netcdf_file, netcdf_variable
 
-from data_store import save_as_module
-from mmio import mminfo, mmread, mmwrite
-from idl import readsav
-from harwell_boeing import hb_read, hb_write
+# Fortran file support
+from ._fortran import FortranFile
 
-__all__ = filter(lambda s:not s.startswith('_'),dir())
+from .mmio import mminfo, mmread, mmwrite
+from .idl import readsav
+from .harwell_boeing import hb_read, hb_write
+
+__all__ = [s for s in dir() if not s.startswith('_')]
 from numpy.testing import Tester
 test = Tester().test
-

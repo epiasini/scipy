@@ -1,16 +1,21 @@
 # Copyright (C) 2009, Pauli Virtanen <pav@iki.fi>
 # Distributed under the same license as Scipy.
 
+from __future__ import division, print_function, absolute_import
+
 import numpy as np
+from scipy.lib.six.moves import xrange
 from scipy.linalg import get_blas_funcs
-from utils import make_system
+from .utils import make_system
 
 __all__ = ['lgmres']
+
 
 def norm2(q):
     q = np.asarray(q)
     nrm2 = get_blas_funcs('nrm2', dtype=q.dtype)
     return nrm2(q)
+
 
 def lgmres(A, b, x0=None, tol=1e-5, maxiter=1000, M=None, callback=None,
            inner_m=30, outer_k=3, outer_v=None, store_outer_Av=True):
@@ -32,7 +37,7 @@ def lgmres(A, b, x0=None, tol=1e-5, maxiter=1000, M=None, callback=None,
     tol : float
         Tolerance to achieve. The algorithm terminates when either the relative
         or the absolute residual is below `tol`.
-    maxiter : integer
+    maxiter : int
         Maximum number of iterations.  Iteration will stop after maxiter
         steps even if the specified tolerance has not been achieved.
     M : {sparse matrix, dense matrix, LinearOperator}
@@ -43,9 +48,6 @@ def lgmres(A, b, x0=None, tol=1e-5, maxiter=1000, M=None, callback=None,
     callback : function
         User-supplied function to call after each iteration.  It is called
         as callback(xk), where xk is the current solution vector.
-
-    Other Parameters
-    ----------------
     inner_m : int, optional
         Number of inner GMRES iterations per each outer iteration.
     outer_k : int, optional
@@ -70,11 +72,12 @@ def lgmres(A, b, x0=None, tol=1e-5, maxiter=1000, M=None, callback=None,
     -------
     x : array or matrix
         The converged solution.
-    info : integer
+    info : int
         Provides convergence information:
-            0  : successful exit
-            >0 : convergence to tolerance not achieved, number of iterations
-            <0 : illegal input or breakdown
+
+            - 0  : successful exit
+            - >0 : convergence to tolerance not achieved, number of iterations
+            - <0 : illegal input or breakdown
 
     Notes
     -----
@@ -209,7 +212,7 @@ def lgmres(A, b, x0=None, tol=1e-5, maxiter=1000, M=None, callback=None,
             for v in vs:
                 alpha = dot(v, v_new)
                 hcur.append(alpha)
-                v_new = axpy(v, v_new, v.shape[0], -alpha) # v_new -= alpha*v
+                v_new = axpy(v, v_new, v.shape[0], -alpha)  # v_new -= alpha*v
             hcur.append(norm2(v_new))
 
             if hcur[-1] == 0:
@@ -234,8 +237,8 @@ def lgmres(A, b, x0=None, tol=1e-5, maxiter=1000, M=None, callback=None,
                 continue
 
             # -- GMRES optimization problem
-            hess  = np.zeros((j+1, j), x.dtype)
-            e1    = np.zeros((j+1,), x.dtype)
+            hess = np.zeros((j+1, j), x.dtype)
+            e1 = np.zeros((j+1,), x.dtype)
             e1[0] = inner_res_0
             for q in xrange(j):
                 hess[:(q+2),q] = hs[q]
@@ -250,7 +253,7 @@ def lgmres(A, b, x0=None, tol=1e-5, maxiter=1000, M=None, callback=None,
         # -- GMRES terminated: eval solution
         dx = ws[0]*y[0]
         for w, yc in zip(ws[1:], y[1:]):
-            dx = axpy(w, dx, dx.shape[0], yc) # dx += w*yc
+            dx = axpy(w, dx, dx.shape[0], yc)  # dx += w*yc
 
         # -- Store LGMRES augmentation vectors
         nx = norm2(dx)

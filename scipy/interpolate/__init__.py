@@ -23,9 +23,11 @@ Univariate interpolation
    BarycentricInterpolator
    KroghInterpolator
    PiecewisePolynomial
+   PchipInterpolator
    barycentric_interpolate
    krogh_interpolate
    piecewise_polynomial_interpolate
+   pchip_interpolate
 
 
 Multivariate interpolation
@@ -70,13 +72,15 @@ The above univariate spline classes have the following methods:
    UnivariateSpline.derivatives
    UnivariateSpline.integral
    UnivariateSpline.roots
+   UnivariateSpline.derivative
+   UnivariateSpline.antiderivative
    UnivariateSpline.get_coeffs
    UnivariateSpline.get_knots
    UnivariateSpline.get_residual
    UnivariateSpline.set_smoothing_factor
 
 
-Low-level interface to FITPACK functions:
+Functional interface to FITPACK functions:
 
 .. autosummary::
    :toctree: generated/
@@ -87,6 +91,8 @@ Low-level interface to FITPACK functions:
    splint
    sproot
    spalde
+   splder
+   splantider
    bisplrep
    bisplev
 
@@ -100,6 +106,7 @@ For data on a grid:
    :toctree: generated/
 
    RectBivariateSpline
+   RectSphereBivariateSpline
 
 For unstructured data:
 
@@ -108,7 +115,9 @@ For unstructured data:
 
    BivariateSpline
    SmoothBivariateSpline
+   SmoothSphereBivariateSpline
    LSQBivariateSpline
+   LSQSphereBivariateSpline
 
 Low-level interface to FITPACK functions:
 
@@ -142,19 +151,20 @@ Additional tools
    `scipy.signal.cspline2d`.
 
 """
+from __future__ import division, print_function, absolute_import
 
-from interpolate import *
-from fitpack import *
+from .interpolate import *
+from .fitpack import *
 
 # New interface to fitpack library:
-from fitpack2 import *
+from .fitpack2 import *
 
-from rbf import Rbf
+from .rbf import Rbf
 
-from polyint import *
+from .polyint import *
 
-from ndgriddata import *
+from .ndgriddata import *
 
-__all__ = filter(lambda s:not s.startswith('_'),dir())
+__all__ = [s for s in dir() if not s.startswith('_')]
 from numpy.testing import Tester
 test = Tester().test

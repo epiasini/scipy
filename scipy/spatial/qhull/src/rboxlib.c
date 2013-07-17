@@ -26,7 +26,7 @@
 
 #ifdef _MSC_VER  /* Microsoft Visual C++ */
 #pragma warning( disable : 4706)  /* assignment within conditional expression. */
-#pragma warning( disable : 4996)  /* this function (strncat) or variable may be unsafe. */
+#pragma warning( disable : 4996)  /* this function (strncat,sprintf,strcpy) or variable may be unsafe. */
 #endif
 
 #define MAXdim 200
@@ -76,6 +76,7 @@ rboxT rbox;
 
   notes:
     To avoid stdio, redefine qh_malloc, qh_free, and qh_fprintf_rbox (user.c)
+    Rbox is not multithreaded.
 
   design:
     Straight line code (consider defining a struct and functions):
@@ -124,7 +125,7 @@ int qh_rboxpoints(FILE* fout, FILE* ferr, char* rbox_command) {
   }
 
   *command= '\0';
-  strncat(command, rbox_command, sizeof(command));
+  strncat(command, rbox_command, sizeof(command)-strlen(command)-1);
 
   while (*s && !isspace(*s))  /* skip program name */
     s++;
@@ -347,7 +348,7 @@ int qh_rboxpoints(FILE* fout, FILE* ferr, char* rbox_command) {
   }else if (israndom) {
     seed= (int)time(&timedata);
     sprintf(seedbuf, " t%d", seed);  /* appends an extra t, not worth removing */
-    strncat(command, seedbuf, sizeof(command));
+    strncat(command, seedbuf, sizeof(command)-strlen(command)-1);
     t= strstr(command, " t ");
     if (t)
       strcpy(t+1, t+3); /* remove " t " */

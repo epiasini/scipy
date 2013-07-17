@@ -8,60 +8,94 @@ Functions
 `write`: Write a numpy array as a WAV file.
 
 """
+from __future__ import division, print_function, absolute_import
+
 import numpy
-from numpy.compat import asbytes
 import struct
 import warnings
+
 
 class WavFileWarning(UserWarning):
     pass
 
 _big_endian = False
 
+WAVE_FORMAT_PCM = 0x0001
+WAVE_FORMAT_IEEE_FLOAT = 0x0003
+WAVE_FORMAT_EXTENSIBLE = 0xfffe
+KNOWN_WAVE_FORMATS = (WAVE_FORMAT_PCM, WAVE_FORMAT_IEEE_FLOAT)
+
 # assumes file pointer is immediately
 #  after the 'fmt ' id
+
+
 def _read_fmt_chunk(fid):
     if _big_endian:
         fmt = '>'
     else:
         fmt = '<'
-    res = struct.unpack(fmt+'ihHIIHH',fid.read(20))
+    res = struct.unpack(fmt+'iHHIIHH',fid.read(20))
     size, comp, noc, rate, sbytes, ba, bits = res
-    if (comp != 1 or size > 16):
-        warnings.warn("Unfamiliar format bytes", WavFileWarning)
-        if (size>16):
-            fid.read(size-16)
+    if comp not in KNOWN_WAVE_FORMATS or size > 16:
+        comp = WAVE_FORMAT_PCM
+        warnings.warn("Unknown wave file format", WavFileWarning)
+        if size > 16:
+            fid.read(size - 16)
+
     return size, comp, noc, rate, sbytes, ba, bits
+
 
 # assumes file pointer is immediately
 #   after the 'data' id
-def _read_data_chunk(fid, noc, bits):
+def _read_data_chunk(fid, comp, noc, bits, mmap=False):
     if _big_endian:
         fmt = '>i'
     else:
         fmt = '<i'
     size = struct.unpack(fmt,fid.read(4))[0]
+
+    bytes = bits//8
     if bits == 8:
-        data = numpy.fromfile(fid, dtype=numpy.ubyte, count=size)
-        if noc > 1:
-            data = data.reshape(-1,noc)
+        dtype = 'u1'
     else:
-        bytes = bits//8
         if _big_endian:
-            dtype = '>i%d' % bytes
+            dtype = '>'
         else:
-            dtype = '<i%d' % bytes
+            dtype = '<'
+        if comp == 1:
+            dtype += 'i%d' % bytes
+        else:
+            dtype += 'f%d' % bytes
+    if not mmap:
         data = numpy.fromfile(fid, dtype=dtype, count=size//bytes)
-        if noc > 1:
-            data = data.reshape(-1,noc)
+    else:
+        start = fid.tell()
+        data = numpy.memmap(fid, dtype=dtype, mode='c', offset=start,
+                            shape=(size//bytes,))
+        fid.seek(start + size)
+
+    if noc > 1:
+        data = data.reshape(-1,noc)
     return data
+
+
+def _skip_unknown_chunk(fid):
+    if _big_endian:
+        fmt = '>i'
+    else:
+        fmt = '<i'
+
+    data = fid.read(4)
+    size = struct.unpack(fmt, data)[0]
+    fid.seek(size, 1)
+
 
 def _read_riff_chunk(fid):
     global _big_endian
     str1 = fid.read(4)
-    if str1 == asbytes('RIFX'):
+    if str1 == b'RIFX':
         _big_endian = True
-    elif str1 != asbytes('RIFF'):
+    elif str1 != b'RIFF':
         raise ValueError("Not a WAV file.")
     if _big_endian:
         fmt = '>I'
@@ -69,14 +103,16 @@ def _read_riff_chunk(fid):
         fmt = '<I'
     fsize = struct.unpack(fmt, fid.read(4))[0] + 8
     str2 = fid.read(4)
-    if (str2 != asbytes('WAVE')):
+    if (str2 != b'WAVE'):
         raise ValueError("Not a WAV file.")
-    if str1 == asbytes('RIFX'):
+    if str1 == b'RIFX':
         _big_endian = True
     return fsize
 
 # open a wave-file
-def read(file):
+
+
+def read(file, mmap=False):
     """
     Return the sample rate (in samples/sec) and data from a WAV file
 
@@ -84,6 +120,10 @@ def read(file):
     ----------
     file : file
         Input wav file.
+    mmap : bool, optional
+        Whether to read data as memory mapped. (Default: False)
+
+        .. versionadded:: 0.12.0
 
     Returns
     -------
@@ -110,27 +150,30 @@ def read(file):
     fsize = _read_riff_chunk(fid)
     noc = 1
     bits = 8
+    comp = WAVE_FORMAT_PCM
     while (fid.tell() < fsize):
         # read the next chunk
         chunk_id = fid.read(4)
-        if chunk_id == asbytes('fmt '):
+        if chunk_id == b'fmt ':
             size, comp, noc, rate, sbytes, ba, bits = _read_fmt_chunk(fid)
-        elif chunk_id == asbytes('data'):
-            data = _read_data_chunk(fid, noc, bits)
+        elif chunk_id == b'fact':
+            _skip_unknown_chunk(fid)
+        elif chunk_id == b'data':
+            data = _read_data_chunk(fid, comp, noc, bits, mmap=mmap)
+        elif chunk_id == b'LIST':
+            # Someday this could be handled properly but for now skip it
+            _skip_unknown_chunk(fid)
         else:
-            warnings.warn("chunk not understood", WavFileWarning)
-            data = fid.read(4)
-            if _big_endian:
-                fmt = '>i'
-            else:
-                fmt = '<i'
-            size = struct.unpack(fmt, data)[0]
-            fid.seek(size, 1)
+            warnings.warn("Chunk (non-data) not understood, skipping it.",
+                          WavFileWarning)
+            _skip_unknown_chunk(fid)
     fid.close()
     return rate, data
 
 # Write a wave-file
 # sample rate, data
+
+
 def write(filename, rate, data):
     """
     Write a numpy array as a WAV file
@@ -142,7 +185,7 @@ def write(filename, rate, data):
     rate : int
         The sample rate (in samples/sec).
     data : ndarray
-        A 1-D or 2-D numpy array of integer data-type.
+        A 1-D or 2-D numpy array of either integer or float data-type.
 
     Notes
     -----
@@ -152,12 +195,20 @@ def write(filename, rate, data):
       (Nsamples, Nchannels).
 
     """
+    dkind = data.dtype.kind
+    if not (dkind == 'i' or dkind == 'f' or (dkind == 'u' and data.dtype.itemsize == 1)):
+        raise ValueError("Unsupported data type '%s'" % data.dtype)
+
     fid = open(filename, 'wb')
-    fid.write(asbytes('RIFF'))
-    fid.write(asbytes('\x00\x00\x00\x00'))
-    fid.write(asbytes('WAVE'))
+    fid.write(b'RIFF')
+    fid.write(b'\x00\x00\x00\x00')
+    fid.write(b'WAVE')
     # fmt chunk
-    fid.write(asbytes('fmt '))
+    fid.write(b'fmt ')
+    if dkind == 'f':
+        comp = 3
+    else:
+        comp = 1
     if data.ndim == 1:
         noc = 1
     else:
@@ -165,9 +216,9 @@ def write(filename, rate, data):
     bits = data.dtype.itemsize * 8
     sbytes = rate*(bits // 8)*noc
     ba = noc * (bits // 8)
-    fid.write(struct.pack('<ihHIIHH', 16, 1, noc, rate, sbytes, ba, bits))
+    fid.write(struct.pack('<ihHIIHH', 16, comp, noc, rate, sbytes, ba, bits))
     # data chunk
-    fid.write(asbytes('data'))
+    fid.write(b'data')
     fid.write(struct.pack('<i', data.nbytes))
     import sys
     if data.dtype.byteorder == '>' or (data.dtype.byteorder == '=' and sys.byteorder == 'big'):

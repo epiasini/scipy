@@ -1,3 +1,5 @@
+from __future__ import division, print_function, absolute_import
+
 import numpy as np
 from numpy.testing import TestCase, assert_array_almost_equal, dec, \
                           assert_equal, assert_
@@ -7,6 +9,7 @@ from common import FUNCS_TP, FLAPACK_IS_EMPTY, CLAPACK_IS_EMPTY, FUNCS_FLAPACK, 
 
 A = np.array([[1,2,3],[2,2,3],[3,3,6]])
 B = np.array([[10,-1,1],[-1,8,-2],[1,-2,6]])
+
 
 class TestSygv(TestCase):
     def _test_base(self, func, lang, itype):
@@ -90,5 +93,5 @@ class TestSygv(TestCase):
     def test_clapack_dsygv_3(self):
         self._test_base('dsygv', 'C', 3)
 
-if __name__=="__main__":
+if __name__ == "__main__":
     run_module_suite()

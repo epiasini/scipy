@@ -2,11 +2,14 @@
 #
 # Created by: Pearu Peterson, September 2002
 #
+from __future__ import division, print_function, absolute_import
+
 import numpy as np
 from numpy.testing import *
 
 from common import FUNCS_TP, FUNCS_CLAPACK, FUNCS_FLAPACK, FLAPACK_IS_EMPTY, \
                    CLAPACK_IS_EMPTY
+
 
 class TestLapack(TestCase):
     def _test_gebal_base(self, func, lang):
@@ -38,8 +41,8 @@ class TestLapack(TestCase):
         tp = FUNCS_TP[func]
 
         a = np.array([[-149, -50,-154],
-             [ 537, 180, 546],
-             [ -27,  -9, -25]]).astype(tp)
+             [537, 180, 546],
+             [-27, -9, -25]]).astype(tp)
 
         if lang == 'C':
             f = FUNCS_CLAPACK[func]

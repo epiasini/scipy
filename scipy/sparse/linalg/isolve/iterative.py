@@ -1,13 +1,15 @@
 """Iterative methods for solving linear systems"""
 
+from __future__ import division, print_function, absolute_import
+
 __all__ = ['bicg','bicgstab','cg','cgs','gmres','qmr']
 
-import _iterative
+from . import _iterative
 import numpy as np
 
 from scipy.sparse.linalg.interface import LinearOperator
 from scipy.lib.decorator import decorator
-from utils import make_system
+from .utils import make_system
 
 _type_conv = {'f':'s', 'd':'d', 'F':'c', 'D':'z'}
 
@@ -72,6 +74,7 @@ def set_docstring(header, Ainfo, footer=''):
         return fn
     return combine
 
+
 @decorator
 def non_reentrant(func, *a, **kw):
     d = func.__dict__
@@ -82,6 +85,7 @@ def non_reentrant(func, *a, **kw):
         return func(*a, **kw)
     finally:
         d['__entered'] = False
+
 
 @set_docstring('Use BIConjugate Gradient iteration to solve A x = b',
                'The real or complex N-by-N matrix of the linear system\n'
@@ -98,7 +102,7 @@ def bicg(A, b, x0=None, tol=1e-5, maxiter=None, xtype=None, M=None, callback=Non
     matvec, rmatvec = A.matvec, A.rmatvec
     psolve, rpsolve = M.matvec, M.rmatvec
     ltr = _type_conv[x.dtype.char]
-    revcom   = getattr(_iterative, ltr + 'bicgrevcom')
+    revcom = getattr(_iterative, ltr + 'bicgrevcom')
     stoptest = getattr(_iterative, ltr + 'stoptest2')
 
     resid = tol
@@ -143,10 +147,11 @@ def bicg(A, b, x0=None, tol=1e-5, maxiter=None, xtype=None, M=None, callback=Non
         ijob = 2
 
     if info > 0 and iter_ == maxiter and resid > tol:
-        #info isn't set appropriately otherwise
+        # info isn't set appropriately otherwise
         info = iter_
 
     return postprocess(x), info
+
 
 @set_docstring('Use BIConjugate Gradient STABilized iteration to solve A x = b',
                'The real or complex N-by-N matrix of the linear system\n'
@@ -162,7 +167,7 @@ def bicgstab(A, b, x0=None, tol=1e-5, maxiter=None, xtype=None, M=None, callback
     matvec = A.matvec
     psolve = M.matvec
     ltr = _type_conv[x.dtype.char]
-    revcom   = getattr(_iterative, ltr + 'bicgstabrevcom')
+    revcom = getattr(_iterative, ltr + 'bicgstabrevcom')
     stoptest = getattr(_iterative, ltr + 'stoptest2')
 
     resid = tol
@@ -204,10 +209,11 @@ def bicgstab(A, b, x0=None, tol=1e-5, maxiter=None, xtype=None, M=None, callback
         ijob = 2
 
     if info > 0 and iter_ == maxiter and resid > tol:
-        #info isn't set appropriately otherwise
+        # info isn't set appropriately otherwise
         info = iter_
 
     return postprocess(x), info
+
 
 @set_docstring('Use Conjugate Gradient iteration to solve A x = b',
                'The real or complex N-by-N matrix of the linear system\n'
@@ -223,7 +229,7 @@ def cg(A, b, x0=None, tol=1e-5, maxiter=None, xtype=None, M=None, callback=None)
     matvec = A.matvec
     psolve = M.matvec
     ltr = _type_conv[x.dtype.char]
-    revcom   = getattr(_iterative, ltr + 'cgrevcom')
+    revcom = getattr(_iterative, ltr + 'cgrevcom')
     stoptest = getattr(_iterative, ltr + 'stoptest2')
 
     resid = tol
@@ -262,9 +268,8 @@ def cg(A, b, x0=None, tol=1e-5, maxiter=None, xtype=None, M=None, callback=None)
             bnrm2, resid, info = stoptest(work[slice1], b, bnrm2, tol, info)
         ijob = 2
 
-
     if info > 0 and iter_ == maxiter and resid > tol:
-        #info isn't set appropriately otherwise
+        # info isn't set appropriately otherwise
         info = iter_
 
     return postprocess(x), info
@@ -283,7 +288,7 @@ def cgs(A, b, x0=None, tol=1e-5, maxiter=None, xtype=None, M=None, callback=None
     matvec = A.matvec
     psolve = M.matvec
     ltr = _type_conv[x.dtype.char]
-    revcom   = getattr(_iterative, ltr + 'cgsrevcom')
+    revcom = getattr(_iterative, ltr + 'cgsrevcom')
     stoptest = getattr(_iterative, ltr + 'stoptest2')
 
     resid = tol
@@ -323,10 +328,11 @@ def cgs(A, b, x0=None, tol=1e-5, maxiter=None, xtype=None, M=None, callback=None
         ijob = 2
 
     if info > 0 and iter_ == maxiter and resid > tol:
-        #info isn't set appropriately otherwise
+        # info isn't set appropriately otherwise
         info = iter_
 
     return postprocess(x), info
+
 
 @non_reentrant
 def gmres(A, b, x0=None, tol=1e-5, restart=None, maxiter=None, xtype=None, M=None, callback=None, restrt=None):
@@ -364,34 +370,6 @@ def gmres(A, b, x0=None, tol=1e-5, restart=None, maxiter=None, xtype=None, M=Non
     maxiter : int, optional
         Maximum number of iterations.  Iteration will stop after maxiter
         steps even if the specified tolerance has not been achieved.
-    M : {sparse matrix, dense matrix, LinearOperator}
-        Inverse of the preconditioner of A.  M should approximate the
-        inverse of A and be easy to solve for (see Notes).  Effective
-        preconditioning dramatically improves the rate of convergence,
-        which implies that fewer iterations are needed to reach a given
-        error tolerance.  By default, no preconditioner is used.
-    callback : function
-        User-supplied function to call after each iteration.  It is called
-        as callback(rk), where rk is the current residual vector.
-
-    See Also
-    --------
-    LinearOperator
-
-    Notes
-    -----
-    A preconditioner, P, is chosen such that P is close to A but easy to solve for.
-    The preconditioner parameter required by this routine is ``M = P^-1``.
-    The inverse should preferably not be calculated explicitly.  Rather, use the
-    following template to produce M::
-
-      # Construct a linear operator that computes P^-1 * x.
-      import scipy.sparse.linalg as spla
-      M_x = lambda x: spla.spsolve(P, x)
-      M = spla.LinearOperator((n, n), M_x)
-
-    Deprecated Parameters
-    ---------------------
     xtype : {'f','d','F','D'}
         This parameter is DEPRECATED --- avoid using it.
 
@@ -401,10 +379,33 @@ def gmres(A, b, x0=None, tol=1e-5, restart=None, maxiter=None, xtype=None, M=Non
         computation when A does not have a typecode attribute use xtype=0
         for the same type as b or use xtype='f','d','F',or 'D'.
         This parameter has been superceeded by LinearOperator.
+    M : {sparse matrix, dense matrix, LinearOperator}
+        Inverse of the preconditioner of A.  M should approximate the
+        inverse of A and be easy to solve for (see Notes).  Effective
+        preconditioning dramatically improves the rate of convergence,
+        which implies that fewer iterations are needed to reach a given
+        error tolerance.  By default, no preconditioner is used.
+    callback : function
+        User-supplied function to call after each iteration.  It is called
+        as callback(rk), where rk is the current residual vector.
+    restrt : int, optional
+        DEPRECATED - use `restart` instead.
 
     See Also
     --------
     LinearOperator
+
+    Notes
+    -----
+    A preconditioner, P, is chosen such that P is close to A but easy to solve
+    for. The preconditioner parameter required by this routine is
+    ``M = P^-1``. The inverse should preferably not be calculated
+    explicitly.  Rather, use the following template to produce M::
+
+      # Construct a linear operator that computes P^-1 * x.
+      import scipy.sparse.linalg as spla
+      M_x = lambda x: spla.spsolve(P, x)
+      M = spla.LinearOperator((n, n), M_x)
 
     """
 
@@ -428,13 +429,13 @@ def gmres(A, b, x0=None, tol=1e-5, restart=None, maxiter=None, xtype=None, M=Non
     matvec = A.matvec
     psolve = M.matvec
     ltr = _type_conv[x.dtype.char]
-    revcom   = getattr(_iterative, ltr + 'gmresrevcom')
+    revcom = getattr(_iterative, ltr + 'gmresrevcom')
     stoptest = getattr(_iterative, ltr + 'stoptest2')
 
     resid = tol
     ndx1 = 1
     ndx2 = -1
-    work  = np.zeros((6+restrt)*n,dtype=x.dtype)
+    work = np.zeros((6+restrt)*n,dtype=x.dtype)
     work2 = np.zeros((restrt+1)*(2*restrt+2),dtype=x.dtype)
     ijob = 1
     info = 0
@@ -449,11 +450,11 @@ def gmres(A, b, x0=None, tol=1e-5, restart=None, maxiter=None, xtype=None, M=Non
         olditer = iter_
         x, iter_, resid, info, ndx1, ndx2, sclr1, sclr2, ijob = \
            revcom(b, x, restrt, work, work2, iter_, resid, info, ndx1, ndx2, ijob)
-        #if callback is not None and iter_ > olditer:
+        # if callback is not None and iter_ > olditer:
         #    callback(x)
         slice1 = slice(ndx1-1, ndx1-1+n)
         slice2 = slice(ndx2-1, ndx2-1+n)
-        if (ijob == -1): # gmres success, update last residual
+        if (ijob == -1):  # gmres success, update last residual
             if resid_ready and callback is not None:
                 callback(resid)
                 resid_ready = False
@@ -464,7 +465,7 @@ def gmres(A, b, x0=None, tol=1e-5, restart=None, maxiter=None, xtype=None, M=Non
             work[slice2] += sclr1*matvec(x)
         elif (ijob == 2):
             work[slice1] = psolve(work[slice2])
-            if not first_pass and old_ijob==3:
+            if not first_pass and old_ijob == 3:
                 resid_ready = True
 
             first_pass = False
@@ -489,7 +490,7 @@ def gmres(A, b, x0=None, tol=1e-5, restart=None, maxiter=None, xtype=None, M=Non
             break
 
     if info >= 0 and resid > tol:
-        #info isn't set appropriately otherwise
+        # info isn't set appropriately otherwise
         info = maxiter
 
     return postprocess(x), info
@@ -559,10 +560,13 @@ def qmr(A, b, x0=None, tol=1e-5, maxiter=None, xtype=None, M1=None, M2=None, cal
         if hasattr(A_,'psolve'):
             def left_psolve(b):
                 return A_.psolve(b,'left')
+
             def right_psolve(b):
                 return A_.psolve(b,'right')
+
             def left_rpsolve(b):
                 return A_.rpsolve(b,'left')
+
             def right_rpsolve(b):
                 return A_.rpsolve(b,'right')
             M1 = LinearOperator(A.shape, matvec=left_psolve, rmatvec=left_rpsolve)
@@ -578,7 +582,7 @@ def qmr(A, b, x0=None, tol=1e-5, maxiter=None, xtype=None, M1=None, M2=None, cal
         maxiter = n*10
 
     ltr = _type_conv[x.dtype.char]
-    revcom   = getattr(_iterative, ltr + 'qmrrevcom')
+    revcom = getattr(_iterative, ltr + 'qmrrevcom')
     stoptest = getattr(_iterative, ltr + 'stoptest2')
 
     resid = tol
@@ -627,7 +631,7 @@ def qmr(A, b, x0=None, tol=1e-5, maxiter=None, xtype=None, M1=None, M2=None, cal
         ijob = 2
 
     if info > 0 and iter_ == maxiter and resid > tol:
-        #info isn't set appropriately otherwise
+        # info isn't set appropriately otherwise
         info = iter_
 
     return postprocess(x), info

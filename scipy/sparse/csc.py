@@ -1,4 +1,5 @@
 """Compressed Sparse Column matrix format"""
+from __future__ import division, print_function, absolute_import
 
 __docformat__ = "restructuredtext en"
 
@@ -7,11 +8,12 @@ __all__ = ['csc_matrix', 'isspmatrix_csc']
 from warnings import warn
 
 import numpy as np
+from scipy.lib.six.moves import xrange
 
-from sparsetools import csc_tocsr
-from sputils import upcast, isintlike
+from .sparsetools import csc_tocsr
+from .sputils import upcast, isintlike
 
-from compressed import _cs_matrix
+from .compressed import _cs_matrix
 
 
 class csc_matrix(_cs_matrix):
@@ -106,7 +108,7 @@ class csc_matrix(_cs_matrix):
     """
 
     def transpose(self, copy=False):
-        from csr import csr_matrix
+        from .csr import csr_matrix
         M,N = self.shape
         return csr_matrix((self.data,self.indices,self.indptr),(N,M),copy=copy)
 
@@ -123,19 +125,18 @@ class csc_matrix(_cs_matrix):
 
     def tocsr(self):
         M,N = self.shape
-        indptr  = np.empty(M + 1,    dtype=np.intc)
+        indptr = np.empty(M + 1, dtype=np.intc)
         indices = np.empty(self.nnz, dtype=np.intc)
-        data    = np.empty(self.nnz, dtype=upcast(self.dtype))
+        data = np.empty(self.nnz, dtype=upcast(self.dtype))
 
-        csc_tocsr(M, N, \
-                 self.indptr, self.indices, self.data, \
+        csc_tocsr(M, N,
+                 self.indptr, self.indices, self.data,
                  indptr, indices, data)
 
-        from csr import csr_matrix
+        from .csr import csr_matrix
         A = csr_matrix((data, indices, indptr), shape=self.shape)
         A.has_sorted_indices = True
         return A
-
 
     def __getitem__(self, key):
         # use CSR to implement fancy indexing
@@ -163,10 +164,25 @@ class csc_matrix(_cs_matrix):
 
             return self.T[col,row].T
         elif isintlike(key) or isinstance(key,slice):
-            return self.T[:,key].T                              #[i] or [1:2]
+            return self.T[:,key].T                              # [i] or [1:2]
         else:
-            return self.T[:,key].T                              #[[1,2]]
+            return self.T[:,key].T                              # [[1,2]]
 
+    def getrow(self, i):
+        """Returns a copy of row i of the matrix, as a (1 x n)
+        CSR matrix (row vector).
+        """
+        # transpose to use CSR code
+        # we convert to CSR to maintain compatibility with old impl.
+        # in spmatrix.getrow()
+        return self.T.getcol(i).T.tocsr()
+
+    def getcol(self, i):
+        """Returns a copy of column i of the matrix, as a (m x 1)
+        CSC matrix (column vector).
+        """
+        # transpose to use CSR code
+        return self.T.getrow(i).T
 
     # these functions are used by the parent class (_cs_matrix)
     # to remove redudancy between csc_matrix and csr_matrix

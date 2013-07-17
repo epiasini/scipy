@@ -1,21 +1,23 @@
-"""Module for reading and writing MATLAB .mat files"""
-# Authors: Travis Oliphant, Matthew Brett
-
 """
 Module for reading and writing matlab (TM) .mat files
 """
+# Authors: Travis Oliphant, Matthew Brett
+
+from __future__ import division, print_function, absolute_import
 
 import os
 import sys
 import warnings
 
-from numpy.compat import asbytes
+from scipy.lib.six import string_types
 
-from miobase import get_matfile_version, docfiller
-from mio4 import MatFile4Reader, MatFile4Writer
-from mio5 import MatFile5Reader, MatFile5Writer
+from .miobase import get_matfile_version, docfiller
+from .mio4 import MatFile4Reader, MatFile4Writer
+from .mio5 import MatFile5Reader, MatFile5Writer
 
-__all__ = ['find_mat_file', 'mat_reader_factory', 'loadmat', 'savemat']
+__all__ = ['find_mat_file', 'mat_reader_factory', 'loadmat', 'savemat',
+           'whosmat']
+
 
 @docfiller
 def find_mat_file(file_name, appendmat=True):
@@ -60,7 +62,7 @@ def find_mat_file(file_name, appendmat=True):
 
 def _open_file(file_like, appendmat):
     ''' Open `file_like` and return as file-like object '''
-    if isinstance(file_like, basestring):
+    if isinstance(file_like, string_types):
         try:
             return open(file_like, 'rb')
         except IOError:
@@ -112,8 +114,9 @@ def mat_reader_factory(file_name, appendmat=True, **kwargs):
     else:
         raise TypeError('Did not recognize version %s' % mjv)
 
+
 @docfiller
-def loadmat(file_name,  mdict=None, appendmat=True, **kwargs):
+def loadmat(file_name, mdict=None, appendmat=True, **kwargs):
     """
     Load MATLAB file
 
@@ -177,9 +180,10 @@ def loadmat(file_name,  mdict=None, appendmat=True, **kwargs):
         mdict.update(matfile_dict)
     else:
         mdict = matfile_dict
-    if isinstance(file_name, basestring):
+    if isinstance(file_name, string_types):
         MR.mat_stream.close()
     return mdict
+
 
 @docfiller
 def savemat(file_name, mdict,
@@ -241,14 +245,14 @@ def savemat(file_name, mdict,
     place.
 
     """
-    file_is_string = isinstance(file_name, basestring)
+    file_is_string = isinstance(file_name, string_types)
     if file_is_string:
         if appendmat and file_name[-4:] != ".mat":
             file_name = file_name + ".mat"
         file_stream = open(file_name, 'wb')
     else:
         try:
-            file_name.write(asbytes(''))
+            file_name.write(b'')
         except AttributeError:
             raise IOError('Writer needs file name or writeable '
                            'file-like object')
@@ -269,3 +273,42 @@ def savemat(file_name, mdict,
     MW.put_variables(mdict)
     if file_is_string:
         file_stream.close()
+
+
+@docfiller
+def whosmat(file_name, appendmat=True, **kwargs):
+    """
+    List variables inside a MATLAB file
+
+    .. versionadded:: 0.12.0
+
+    Parameters
+    ----------
+    %(file_arg)s
+    %(append_arg)s
+    %(load_args)s
+    %(struct_arg)s
+
+    Returns
+    -------
+    variables : list of tuples
+        A list of tuples, where each tuple holds the matrix name (a string),
+        its shape (tuple of ints), and its data class (a string).
+        Possible data classes are: int8, uint8, int16, uint16, int32, uint32,
+        int64, uint64, single, double, cell, struct, object, char, sparse,
+        function, opaque, logical, unknown.
+
+    Notes
+    -----
+    v4 (Level 1.0), v6 and v7 to 7.2 matfiles are supported.
+
+    You will need an HDF5 python library to read matlab 7.3 format mat
+    files.  Because scipy does not supply one, we do not implement the
+    HDF5 / 7.3 interface here.
+
+    """
+    ML = mat_reader_factory(file_name, **kwargs)
+    variables = ML.list_variables()
+    if isinstance(file_name, string_types):
+        ML.mat_stream.close()
+    return variables

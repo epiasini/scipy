@@ -1,6 +1,8 @@
 """
 Real spectrum tranforms (DCT, DST, MDCT)
 """
+from __future__ import division, print_function, absolute_import
+
 
 __all__ = ['dct', 'idct', 'dst', 'idst']
 
@@ -18,6 +20,7 @@ atexit.register(_fftpack.destroy_ddst1_cache)
 atexit.register(_fftpack.destroy_ddst2_cache)
 atexit.register(_fftpack.destroy_dst1_cache)
 atexit.register(_fftpack.destroy_dst2_cache)
+
 
 def dct(x, type=2, n=None, axis=-1, norm=None, overwrite_x=0):
     """
@@ -56,8 +59,8 @@ def dct(x, type=2, n=None, axis=-1, norm=None, overwrite_x=0):
     implemented in scipy. 'The' DCT generally refers to DCT type 2, and 'the'
     Inverse DCT generally refers to DCT type 3.
 
-    type I
-    ~~~~~~
+    **type I**
+
     There are several definitions of the DCT-I; we use the following
     (for ``norm=None``)::
 
@@ -68,8 +71,8 @@ def dct(x, type=2, n=None, axis=-1, norm=None, overwrite_x=0):
     Only None is supported as normalization mode for DCT-I. Note also that the
     DCT-I is only supported for input size > 1
 
-    type II
-    ~~~~~~~
+    **type II**
+
     There are several definitions of the DCT-II; we use the following
     (for ``norm=None``)::
 
@@ -86,8 +89,7 @@ def dct(x, type=2, n=None, axis=-1, norm=None, overwrite_x=0):
     Which makes the corresponding matrix of coefficients orthonormal
     (``OO' = Id``).
 
-    type III
-    ~~~~~~~~
+    **type III**
 
     There are several definitions, we use the following
     (for ``norm=None``)::
@@ -108,7 +110,6 @@ def dct(x, type=2, n=None, axis=-1, norm=None, overwrite_x=0):
 
     References
     ----------
-
     http://en.wikipedia.org/wiki/Discrete_cosine_transform
 
     'A Fast Cosine Transform in One and Two Dimensions', by J. Makhoul, `IEEE
@@ -120,6 +121,7 @@ def dct(x, type=2, n=None, axis=-1, norm=None, overwrite_x=0):
         raise NotImplementedError(
               "Orthonormalization not yet supported for DCT-I")
     return _dct(x, type, n, axis, normalize=norm, overwrite_x=overwrite_x)
+
 
 def idct(x, type=2, n=None, axis=-1, norm=None, overwrite_x=0):
     """
@@ -142,7 +144,7 @@ def idct(x, type=2, n=None, axis=-1, norm=None, overwrite_x=0):
 
     Returns
     -------
-    y : ndarray of real
+    idct : ndarray of real
         The transformed input array.
 
     See Also
@@ -167,6 +169,7 @@ def idct(x, type=2, n=None, axis=-1, norm=None, overwrite_x=0):
     # Inverse/forward type table
     _TP = {1:1, 2:3, 3:2}
     return _dct(x, _TP[type], n, axis, normalize=norm, overwrite_x=overwrite_x)
+
 
 def _dct(x, type, n=None, axis=-1, overwrite_x=0, normalize=None):
     """
@@ -247,6 +250,8 @@ def dst(x, type=2, n=None, axis=-1, norm=None, overwrite_x=0):
     """
     Return the Discrete Sine Transform of arbitrary type sequence x.
 
+    .. versionadded:: 0.11.0
+
     Parameters
     ----------
     x : array_like
@@ -264,7 +269,7 @@ def dst(x, type=2, n=None, axis=-1, norm=None, overwrite_x=0):
 
     Returns
     -------
-    y : ndarray of real
+    dst : ndarray of reals
         The transformed input array.
 
     See Also
@@ -276,13 +281,13 @@ def dst(x, type=2, n=None, axis=-1, norm=None, overwrite_x=0):
     For a single dimension array ``x``.
 
     There are theoretically 8 types of the DST for different combinations of
-    even/odd boundary conditions and boundary off sets [WPS]_, only the first
+    even/odd boundary conditions and boundary off sets [1]_, only the first
     3 types are implemented in scipy.
 
-    type I
-    ~~~~~~
+    **type I**
+
     There are several definitions of the DST-I; we use the following
-    for ``norm=None``.  DST-I assumes the input is odd around n=-1 and n=N.
+    for ``norm=None``.  DST-I assumes the input is odd around n=-1 and n=N. ::
 
                  N-1
       y[k] = 2 * sum x[n]*sin(pi*(k+1)*(n+1)/(N+1))
@@ -292,26 +297,25 @@ def dst(x, type=2, n=None, axis=-1, norm=None, overwrite_x=0):
     DCT-I is only supported for input size > 1
     The (unnormalized) DCT-I is its own inverse, up to a factor `2(N+1)`.
 
-    type II
-    ~~~~~~~
+    **type II**
+
     There are several definitions of the DST-I; we use the following
-    for ``norm=None``.  DST-I assumes the input is odd around n=-1 and n=N.
+    for ``norm=None``.  DST-I assumes the input is odd around n=-1 and n=N. ::
 
                 N-1
       y[k] = 2* sum x[n]*sin(pi*(k+1)*(n+0.5)/N), 0 <= k < N.
                 n=0
 
-    if ``norm='ortho'``, ``y[k]`` is multiplied by a scaling factor `f`::
+    if ``norm='ortho'``, ``y[k]`` is multiplied by a scaling factor `f` ::
 
         f = sqrt(1/(4*N)) if k == 0
         f = sqrt(1/(2*N)) otherwise.
 
-    type III
-    ~~~~~~~~
+    **type III**
 
     There are several definitions of the DST-III, we use the following
     (for ``norm=None``).  DST-III assumes the input is odd around n=-1
-    and even around n=N-1
+    and even around n=N-1 ::
 
                                  N-2
       y[k] = x[N-1]*(-1)**k + 2* sum x[n]*sin(pi*(k+0.5)*(n+1)/N), 0 <= k < N.
@@ -323,17 +327,20 @@ def dst(x, type=2, n=None, axis=-1, norm=None, overwrite_x=0):
 
     References
     ----------
+    .. [1] http://en.wikipedia.org/wiki/Discrete_sine_transform
 
-    http://en.wikipedia.org/wiki/Discrete_sine_transform
     """
     if type == 1 and norm is not None:
         raise NotImplementedError(
               "Orthonormalization not yet supported for IDCT-I")
     return _dst(x, type, n, axis, normalize=norm, overwrite_x=overwrite_x)
 
+
 def idst(x, type=2, n=None, axis=-1, norm=None, overwrite_x=0):
     """
     Return the Inverse Discrete Sine Transform of an arbitrary type sequence.
+
+    .. versionadded:: 0.11.0
 
     Parameters
     ----------
@@ -352,7 +359,7 @@ def idst(x, type=2, n=None, axis=-1, norm=None, overwrite_x=0):
 
     Returns
     -------
-    y : ndarray of real
+    idst : ndarray of real
         The transformed input array.
 
     See Also
@@ -374,6 +381,7 @@ def idst(x, type=2, n=None, axis=-1, norm=None, overwrite_x=0):
     # Inverse/forward type table
     _TP = {1:1, 2:3, 3:2}
     return _dst(x, _TP[type], n, axis, normalize=norm, overwrite_x=overwrite_x)
+
 
 def _dst(x, type, n=None, axis=-1, overwrite_x=0, normalize=None):
     """

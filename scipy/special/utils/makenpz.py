@@ -5,9 +5,13 @@ makenpz.py DIRECTORY
 Build a npz containing all data files in the directory.
 
 """
+
+from __future__ import division, print_function, absolute_import
+
 import os
 import numpy as np
 from optparse import OptionParser
+
 
 def main():
     p = OptionParser()
@@ -29,13 +33,14 @@ def main():
 
     data = {}
     for key, fn in files:
-        key = key.replace('/', '-')
+        key = key.replace('/', '-').strip('-')
         try:
             data[key] = np.loadtxt(fn)
         except ValueError:
-            print "Failed to load", fn
+            print("Failed to load", fn)
 
     savez_compress(outp, **data)
+
 
 def savez_compress(file, *args, **kwds):
     # Import is postponed to here since zipfile depends on gzip, an optional
@@ -44,14 +49,14 @@ def savez_compress(file, *args, **kwds):
     # Import deferred for startup time improvement
     import tempfile
 
-    if isinstance(file, basestring):
+    if isinstance(file, str):
         if not file.endswith('.npz'):
             file = file + '.npz'
 
     namedict = kwds
     for i, val in enumerate(args):
         key = 'arr_%d' % i
-        if key in namedict.keys():
+        if key in namedict:
             raise ValueError("Cannot use un-named variables and keyword %s" % key)
         namedict[key] = val
 
@@ -61,7 +66,7 @@ def savez_compress(file, *args, **kwds):
     fd, tmpfile = tempfile.mkstemp(suffix='-numpy.npy')
     os.close(fd)
     try:
-        for key, val in namedict.iteritems():
+        for key, val in namedict.items():
             fname = key + '.npy'
             fid = open(tmpfile, 'wb')
             try:
